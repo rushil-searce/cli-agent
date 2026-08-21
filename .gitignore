@@ -21,5 +21,9 @@ research/
 # Generated PDF/HTML handbook output
 docs/dist/
 
+# Exported chat transcripts. Personal working records, not project docs — and
+# they can quote file contents and command output verbatim, so they stay local.
+docs/session-logs/
+
 # Git worktrees created for isolated work. Local scratch, never committed.
 .claude/worktrees/
