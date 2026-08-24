@@ -25,7 +25,10 @@ from dotenv import load_dotenv
 from omega.agent_events import AgentEvent
 from omega.approval import Answer, ApprovalPolicy, ApprovalRequest
 from omega.builtin_tools import build_tools
+from omega.context import measure
+from omega.cost import CostTracker, price_from_env
 from omega.harness import Harness
+from omega.history import drop_empty_failed_turns
 from omega.hooks import AgentHooks
 from omega.loop import DEFAULT_MAX_TURNS
 from omega.provider import ModelProvider
@@ -43,6 +46,33 @@ When asked to perform a coding task:
 
 _ARG_PREVIEW = 80
 _RESULT_PREVIEW = 100
+
+#: Project conventions, read once at startup. "Use uv, not pip" belongs in a file
+#: rather than in every prompt.
+PROJECT_INSTRUCTIONS_FILE = "OMEGA.md"
+
+
+def _system_prompt(root: Path) -> str:
+    """The standing instructions, with project conventions appended if present.
+
+    Built **once**, at startup, and never regenerated per turn. That is not
+    laziness — prompt caching at Tier 3 requires the start of every request to be
+    byte-identical between calls, and a system prompt rebuilt each turn (with a
+    timestamp in it, say) silently destroys the cache. Cheaper to get the habit
+    right now than to debug a mysteriously expensive agent later.
+    """
+    path = root / PROJECT_INSTRUCTIONS_FILE
+    try:
+        extra = path.read_text(encoding="utf-8").strip() if path.is_file() else ""
+    except OSError:
+        extra = ""
+
+    if not extra:
+        return SYSTEM_PROMPT
+    return (
+        f"{SYSTEM_PROMPT}\n\n"
+        f"# Project instructions (from {PROJECT_INSTRUCTIONS_FILE})\n\n{extra}"
+    )
 
 
 def _fake_provider() -> FakeProvider:
@@ -233,6 +263,13 @@ def main() -> None:
     if args.yes:
         print("Tool calls are approved automatically (--yes).")
 
+    system = _system_prompt(root)
+    if system is not SYSTEM_PROMPT:
+        print(f"Loaded project instructions from {PROJECT_INSTRUCTIONS_FILE}.")
+
+    tools = build_tools(root)
+    tracker = CostTracker(price_from_env())
+
     # Policy arrives as hooks, so the loop knows nothing about approvals or
     # secrets. Swapping either is a change to this composition, nothing else.
     hooks = AgentHooks(
@@ -241,6 +278,9 @@ def main() -> None:
             auto_approve=args.yes,
         ),
         after_tool_call=redacting_hook,
+        # Keep failed turns in the transcript, out of the request. The simpler
+        # sibling of the seam compaction uses at Tier 3.
+        convert_to_llm=drop_empty_failed_turns,
     )
 
     store = None if args.no_save else JsonlSessionStore(root)
@@ -250,13 +290,15 @@ def main() -> None:
     harness = Harness(
         provider=provider,
         model=args.model,
-        system=SYSTEM_PROMPT,
+        system=system,
         # Rooted at the directory omega was started in: that is the fence.
-        tools=build_tools(root),
+        tools=tools,
         hooks=hooks,
         max_turns=args.max_turns,
         store=store,
     )
+
+    harness.add_listener(tracker.observe)
 
     if args.session or args.resume:
         if store is None:
@@ -290,6 +332,14 @@ def main() -> None:
             # repairs it before sending anything, so this is a report, not a
             # warning to act on.
             print("\n[interrupted]", file=sys.stderr)
+
+        # The two instruments. Neither fixes anything - they make failures #1
+        # and #9 visible before they bite, which is what Tier 3 needs in order
+        # to know where to put a threshold.
+        usage = measure(
+            model=args.model, system=system, messages=harness.messages, tools=tools
+        )
+        print(f"\n  [{usage} | {tracker}]")
         print()
 
 

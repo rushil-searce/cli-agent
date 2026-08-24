@@ -21,6 +21,7 @@ agent could later run on a server with the UI somewhere else.
 from __future__ import annotations
 
 from collections.abc import AsyncIterator, Callable, Sequence
+from dataclasses import replace
 
 from omega.agent_events import AgentEvent
 from omega.cancellation import CancelSignal
@@ -71,8 +72,21 @@ class Harness:
         self.model = model
         self.system = system
         self.tools = list(tools)
-        self.hooks = hooks if hooks is not None else AgentHooks()
         self.max_turns = max_turns
+
+        #: Queues the loop drains between turns. The harness owns them because
+        #: it is the only thing that outlives a single run, and it supplies the
+        #: two hooks that read them — unless the caller already did, in which
+        #: case theirs wins and these stay unused.
+        self._steering: list[AgentMessage] = []
+        self._follow_ups: list[AgentMessage] = []
+
+        base = hooks if hooks is not None else AgentHooks()
+        self.hooks = replace(
+            base,
+            get_steering_messages=base.get_steering_messages or self._drain_steering,
+            get_follow_up_messages=base.get_follow_up_messages or self._drain_follow_ups,
+        )
 
         #: Concrete, not the Protocol: the harness *owns* cancellation, so it
         #: needs to be able to set and clear it, not merely ask. Everything
@@ -160,6 +174,29 @@ class Harness:
         # Rewrite in place: callers may be holding this list.
         self.messages[:] = repaired
         return fixed
+
+    # ------------------------------------------------------------------ queues
+
+    def queue_steering(self, text: str) -> None:
+        """Add guidance to be picked up between turns, mid-run.
+
+        "Actually, use pytest not unittest" while it is already working. The
+        loop reads this after tool results and before the next request, so the
+        correction lands without restarting the task.
+        """
+        self._steering.append(UserMessage(content=text))
+
+    def queue_follow_up(self, text: str) -> None:
+        """Queue the next task, to start when the current one finishes."""
+        self._follow_ups.append(UserMessage(content=text))
+
+    async def _drain_steering(self) -> list[AgentMessage]:
+        drained, self._steering = self._steering, []
+        return drained
+
+    async def _drain_follow_ups(self) -> list[AgentMessage]:
+        drained, self._follow_ups = self._follow_ups, []
+        return drained
 
     # ---------------------------------------------------------------- sessions
 

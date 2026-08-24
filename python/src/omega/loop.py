@@ -18,11 +18,15 @@ Tier 2 changed two things here, and neither made it longer by much:
 2. **It consults hooks.** Every hook is a decision the loop declines to make.
    Approvals, redaction and (at Tier 3) compaction all arrive as callbacks
    rather than as code in this file.
+
+Adding the between-turns queues pushed this file to 249 lines, one under the
+~250 tripwire Rule 4 sets — so tool execution moved to `tool_runner.py`. That is
+the rule working as intended: it did not stop the feature, it told me which part
+of the file was no longer the loop's own mechanism.
 """
 
 from __future__ import annotations
 
-import asyncio
 from collections.abc import AsyncIterator
 
 from omega.agent_events import (
@@ -38,16 +42,11 @@ from omega.agent_events import (
     TurnEndEvent,
     TurnStartEvent,
 )
-from omega.hooks import AgentHooks
+from omega.hooks import AgentHooks, MessageSource
 from omega.provider import ModelProvider
+from omega.tool_runner import execute_tool_call
 from omega.tools import Tool
-from omega.types import (
-    AgentMessage,
-    AssistantMessage,
-    CancellationToken,
-    ToolCall,
-    ToolResultMessage,
-)
+from omega.types import AgentMessage, AssistantMessage, CancellationToken
 
 DEFAULT_MAX_TURNS = 25
 
@@ -132,15 +131,24 @@ async def run_agent_loop(
         # call is tool_request
         tool_requests = assistant.tool_calls
         if not tool_requests:
+            # The model is finished — unless something was queued while it
+            # worked, in which case the run continues instead of ending.
+            follow_ups = await _queued(hooks.get_follow_up_messages)
             yield TurnEndEvent(turn=turn)
+            if follow_ups:
+                messages.extend(follow_ups)
+                continue
             yield AgentEndEvent(reason="stop")
             return
 
         for tool_request in tool_requests:
             yield ToolExecutionStartEvent(tool_call=tool_request)
-            result = await _execute_tool_call(tool_request, tool_by_name, hooks, signal)
+            result = await execute_tool_call(tool_request, tool_by_name, hooks, signal)
             messages.append(result)
             yield ToolExecutionEndEvent(tool_call=tool_request, result=result)
+
+        # Anything typed while the tools ran, picked up before the next request.
+        messages.extend(await _queued(hooks.get_steering_messages))
 
         yield TurnEndEvent(turn=turn)
 
@@ -150,6 +158,18 @@ async def run_agent_loop(
     yield AgentEndEvent(
         reason="max_turns", error_message=f"Stopped after max_turns={max_turns}"
     )
+
+
+async def _queued(source: MessageSource | None) -> list[AgentMessage]:
+    """Drain a between-turns queue. No queue means nothing to add.
+
+    Deliberately a plain list rather than a stream: the loop reads these at one
+    specific moment, between turns, and a queue that could deliver mid-request
+    would be a queue whose messages arrive in an order nobody can reason about.
+    """
+    if source is None:
+        return []
+    return list(await source())
 
 
 async def _context_for_request(
@@ -168,61 +188,3 @@ async def _context_for_request(
     if hooks.transform_context is not None:
         context = list(await hooks.transform_context(context))
     return context
-
-
-async def _execute_tool_call(
-    tool_request: ToolCall,
-    tool_by_name: dict[str, Tool],
-    hooks: AgentHooks,
-    signal: CancellationToken | None,
-) -> ToolResultMessage:
-    """Run one tool. Never raises.
-
-    Every outcome — success, unknown tool, cancellation, refusal, crash — becomes
-    a normal tool result. The model reads failures as observations and adapts,
-    which is the entire point of an agent loop. An exception here would end the
-    run instead. A *refusal* is in that list for a sharper reason: an unanswered
-    tool call is rejected by providers forever, so "no" must still be an answer.
-    """
-    tool = tool_by_name.get(tool_request.name)
-    if tool is None:
-        return _error_result(tool_request, f"Tool {tool_request.name} not found")
-
-    if signal is not None and signal.is_cancelled():
-        return _error_result(tool_request, "Operation aborted")
-
-    if hooks.before_tool_call is not None:
-        decision = await hooks.before_tool_call(tool_request)
-        if not decision.allowed:
-            return _error_result(tool_request, decision.reason or "Tool call denied")
-
-    try:
-        result = await tool.execute(tool_request.arguments, signal)
-    except asyncio.CancelledError:
-        # Cancellation must propagate. Swallowing it in the broad except below
-        # would make Ctrl-C unreliable — and this is Python, where cancellation
-        # arrives as an exception.
-        raise
-    except Exception as exc:  # noqa: BLE001 - tools are an isolation boundary
-        # A tool is third-party code touching the filesystem and the network. If
-        # a crashing tool crashed the agent, one bad tool would end every session.
-        return _error_result(tool_request, str(exc) or exc.__class__.__name__)
-
-    if hooks.after_tool_call is not None:
-        result = await hooks.after_tool_call(tool_request, result)
-
-    return ToolResultMessage(
-        tool_call_id=tool_request.id,
-        tool_name=tool_request.name,
-        content=result.content,
-        is_error=False,
-    )
-
-
-def _error_result(tool_request: ToolCall, message: str) -> ToolResultMessage:
-    return ToolResultMessage(
-        tool_call_id=tool_request.id,
-        tool_name=tool_request.name,
-        content=message,  # type: ignore[arg-type]
-        is_error=True,
-    )

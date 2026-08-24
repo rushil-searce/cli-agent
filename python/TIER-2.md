@@ -81,12 +81,17 @@ fixes. You will be able to watch both problems approach before Tier 3 solves the
 | **Orphaned tool-result repair** | `harness.py` | An unanswered tool call is a **permanent** API error. Runs on interrupt *and* on resume |
 | Steering queue | `harness.py` | Type while it works; picked up between turns |
 | Follow-up queue | `harness.py` | Queue the next task instead of waiting |
-| Two views of history | `hooks.py` | What you see vs what gets sent. **The seam compaction plugs into at Tier 3** |
+| Two views of history | `hooks.py`, `history.py` | What you see vs what gets sent. `convert_to_llm` does the small version now; `transform_context` is where compaction lands at Tier 3 |
 | Context gauge | `context.py` | chars/4, counts tool schemas. Measures failure **#1**; does not fix it |
-| Cost accounting | `cost.py` | Sums and prices the `Usage` Tier 1 already captured |
+| Cost accounting | `cost.py` | Sums the `Usage` Tier 1 already captured. Prices it only if you supply a price |
 
 **`loop.py` must not pass ~250 lines.** It was 151 at the end of Tier 1; Tau's is 318. Growth
 means a *decision* leaked in where only the *mechanism* belongs.
+
+The tripwire fired for real. Adding the between-turns queues took `loop.py` to **249**, and the
+response was to extract `tool_runner.py` — how one tool call becomes one tool result is a separate
+mechanism that happens to be called from the loop. `loop.py` came back to **190**. The rule did
+not block the feature; it identified which part of the file had stopped being the loop.
 
 ### Layer 3 · Coding app
 
@@ -166,7 +171,15 @@ lands without surgery.
 
 ### Known rough edges, stated plainly
 
-- **Cost figures are estimates.** Prices are hardcoded per model; nothing fetches them.
+- **No price table ships.** A hardcoded dollars-per-million-tokens table is wrong the moment
+  prices change or a model is renamed, and a *confidently wrong* cost figure is worse than none —
+  it gets believed. Token counts are always shown; dollars only when `OMEGA_PRICE_INPUT` and
+  `OMEGA_PRICE_OUTPUT` are set. Tau's provider catalog is the real answer, and it is Tau-parity work.
+- **`--fake` reports zero tokens**, because it sends nothing. Correct, and briefly confusing.
+- **Steering cannot actually be typed yet.** The queues are wired and the loop drains them between
+  turns, but a `print`/`input` REPL has no way to accept a keystroke while a turn is running. A
+  Tier 3 TUI is what makes them reachable; until then they are usable programmatically
+  (`harness.queue_steering(...)`) and covered by tests.
 - **The context gauge is chars/4.** It never claims to be exact — only never wildly wrong.
 - **Tool calls still execute sequentially.** Tau's do too, despite advertising otherwise.
 - **`--fake` still replays a fixed script.** It demonstrates machinery, not intelligence.
