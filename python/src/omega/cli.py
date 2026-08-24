@@ -23,12 +23,15 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 from omega.agent_events import AgentEvent
+from omega.approval import Answer, ApprovalPolicy, ApprovalRequest
 from omega.builtin_tools import build_tools
 from omega.harness import Harness
+from omega.hooks import AgentHooks
 from omega.loop import DEFAULT_MAX_TURNS
 from omega.provider import ModelProvider
 from omega.providers.anthropic import DEFAULT_MODEL, AnthropicProvider
 from omega.providers.fake import FakeProvider, text_turn, tool_turn
+from omega.redact import redacting_hook
 
 SYSTEM_PROMPT = """You are omega, a terminal coding agent. Use the tools to inspect and edit files.
 
@@ -105,6 +108,36 @@ def _install_interrupt_handler(harness: Harness) -> Callable[[], None]:
     return restore
 
 
+async def _ask_in_terminal(request: ApprovalRequest) -> Answer:
+    """Ask the user, off the event loop.
+
+    `input` blocks, so it goes to a thread. Calling it directly would stall the
+    whole agent — including the streaming that is mid-flight behind it.
+
+    The default on a bare Enter is **no**. A prompt whose easiest answer is "yes"
+    is not really asking.
+    """
+    print(f"\n  omega wants to use {request.tool_name}:")
+    print(f"    {_clip(request.summary, 200)}")
+
+    while True:
+        try:
+            answer = await asyncio.to_thread(input, "  allow? [y]es / [a]lways / [N]o: ")
+        except EOFError:
+            # Nothing is watching after all. Treat that as a refusal, not consent.
+            print("  no input available - declining.", file=sys.stderr)
+            return "deny"
+
+        choice = answer.strip().lower()
+        if choice in {"y", "yes"}:
+            return "once"
+        if choice in {"a", "always"}:
+            return "always"
+        if choice in {"n", "no", ""}:
+            return "deny"
+        print("  please answer y, a, or n.")
+
+
 def _render(event: AgentEvent) -> None:
     """Print one agent event.
 
@@ -148,6 +181,14 @@ def main() -> None:
         action="store_true",
         help="Use scripted responses instead of a real provider. No API key needed.",
     )
+    parser.add_argument(
+        "--yes",
+        action="store_true",
+        help=(
+            "Approve tool calls automatically. Does not disable the refuse-outright "
+            "list - that is not a prompt you can skip."
+        ),
+    )
     parser.add_argument("--model", default=DEFAULT_MODEL, help="Model id.")
     parser.add_argument(
         "--max-turns", type=int, default=DEFAULT_MAX_TURNS, help="Loop iteration cap."
@@ -171,6 +212,21 @@ def main() -> None:
 
     print("Type 'exit' to quit.\n")
 
+    root = Path.cwd()
+    print(f"Working directory: {root} (reads and writes are confined to it)")
+    if args.yes:
+        print("Tool calls are approved automatically (--yes).")
+
+    # Policy arrives as hooks, so the loop knows nothing about approvals or
+    # secrets. Swapping either is a change to this composition, nothing else.
+    hooks = AgentHooks(
+        before_tool_call=ApprovalPolicy(
+            asker=None if args.yes else _ask_in_terminal,
+            auto_approve=args.yes,
+        ),
+        after_tool_call=redacting_hook,
+    )
+
     # One harness for the whole session: it owns the transcript, so successive
     # prompts are a conversation rather than a series of unrelated questions.
     harness = Harness(
@@ -178,7 +234,8 @@ def main() -> None:
         model=args.model,
         system=SYSTEM_PROMPT,
         # Rooted at the directory omega was started in: that is the fence.
-        tools=build_tools(Path.cwd()),
+        tools=build_tools(root),
+        hooks=hooks,
         max_turns=args.max_turns,
     )
 

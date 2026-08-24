@@ -171,6 +171,9 @@ lands without surgery.
 - **Tool calls still execute sequentially.** Tau's do too, despite advertising otherwise.
 - **`--fake` still replays a fixed script.** It demonstrates machinery, not intelligence.
 - **Approval memory is per-session.** No persisted trust store; that arrives with config.
+- **Ctrl-C during an approval prompt does not return immediately.** The prompt reads stdin on a
+  worker thread, and a signal cannot interrupt a blocked `input()`. The cancellation is recorded
+  and takes effect as soon as the prompt is answered.
 - **Nothing is sandboxed.** Approvals and path confinement are policy, not containment.
 - **`run_shell` is not path-confined.** `cd .. && cat ~/.ssh/id_rsa` walks straight out of the
   root, and parsing shell commands to prevent that is a game you lose. The shell is covered by
