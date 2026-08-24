@@ -55,7 +55,7 @@ class FakeProvider:
     You hand it one script per expected call. Three scripts = the loop can call three times.
     """
 
-    def __init__(self, streams = ()) -> None:
+    def __init__(self, streams: Iterable[Sequence[AssistantMessageEvent]] = ()) -> None:
         self.streams: list[list[AssistantMessageEvent]] = [list(s) for s in streams]
         self.calls: list[FakeCall] = [] # this is a list of what all we got (fake call)
 
@@ -76,7 +76,8 @@ class FakeProvider:
         # console.log(f"stream: {stream}")
         async def iterator() -> AsyncIterator[AssistantMessageEvent]:
             for event in stream:
-                if signal is not None and signal.is_cancelled(): # this is the function defined in cancellation token
+                # is_cancelled is the method the CancellationToken protocol defines
+                if signal is not None and signal.is_cancelled():
                     return
                 yield event
 
@@ -104,7 +105,8 @@ def text_turn(text: str, *, model: str = "fake-model") -> list[AssistantMessageE
     partial.content.append(TextContent(text=""))
     events.append(TextStartEvent(content_index=0, partial=partial.model_copy(deep=True)))
 
-    # extract the block we just added, so we can mutate it in place and have the partials reflect that
+    # extract the block we just added, so we can mutate it in place and have
+    # the partials reflect that
     block = partial.content[0]
     assert isinstance(block, TextContent)
     # add the text to the block, which will be reflected in the partials

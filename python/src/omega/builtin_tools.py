@@ -93,7 +93,10 @@ async def _run_shell(arguments: dict[str, Any], signal: CancellationToken | None
 
 READ_FILE = Tool(
     name="read_file",
-    description=f"Read a UTF-8 text file and return its contents. {_TRUNCATION_NOTE}. Whenever you are asked to read a file, use this tool.",
+    description=(
+        f"Read a UTF-8 text file and return its contents. {_TRUNCATION_NOTE}. "
+        "Whenever you are asked to read a file, use this tool."
+    ),
     parameters={
         "type": "object",
         "properties": {"path": {"type": "string", "description": "Path to the file to read."}},

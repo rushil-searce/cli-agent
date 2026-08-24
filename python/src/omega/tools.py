@@ -27,6 +27,7 @@ from pydantic import Field, model_validator
 
 from omega.types import CancellationToken, TextContent, WireModel
 
+
 # this class uses pydantic
 # what a tool hands back. It's the tool's output, nothing more.
 class ToolResult(WireModel):

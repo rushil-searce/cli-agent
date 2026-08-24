@@ -1,6 +1,8 @@
 """The agent loop.
 
-Ask qs to the model instead of knowing answers. If it requested tools, run them and report back. Repeat until it stops asking. That is the whole idea, and it is why this file is short.
+Ask qs to the model instead of knowing answers. If it requested tools, run them
+and report back. Repeat until it stops asking. That is the whole idea, and it is
+why this file is short.
 
 **It should stay short.** If this file is growing, something in it is a *decision*
 rather than the *mechanism* — may I run this, should I compact, is this output too
@@ -53,7 +55,9 @@ async def run_agent_loop(
     for _turn in range(max_turns):
         assistant: AssistantMessage | None = None
 
-        async for event in provider.stream_response(model=model,system=system,messages=messages,tools=tools,signal=signal):
+        async for event in provider.stream_response(
+            model=model, system=system, messages=messages, tools=tools, signal=signal
+        ):
             yield event
             # The provider guarantees exactly one terminal event, so exactly one
             # of these fires. Both carry the final message; an error still
