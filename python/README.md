@@ -6,7 +6,7 @@ Named after a physics letter, following [Pi](https://github.com/earendil-works/p
 [Tau](https://github.com/huggingface/tau) — the two MIT-licensed agents this is studied from.
 Written independently, not forked.
 
-**Currently at Tier 2 — "it is usable."** 4,644 lines of source, 289 tests, all offline.
+**Currently at Tier 2 — "it is usable."** 4,654 lines of source, 289 tests, all offline.
 
 * [`TIER-1.md`](TIER-1.md) — what the first tier does, and what it deliberately left out
 * [`TIER-2.md`](TIER-2.md) — what this tier adds, and where each remaining gap plugs in at Tier 3

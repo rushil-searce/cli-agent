@@ -9,22 +9,22 @@ the tier closed — so the work could be checked against a commitment rather tha
 the fact. It has been updated in place as things landed, including the places where reality
 disagreed with the plan.
 
-**4,644 lines of source across 32 files · 4,224 lines of tests · 289 tests, all offline.**
+**4,654 lines of source across 32 files · 4,257 lines of tests · 289 tests, all offline.**
 
 | | Tier 1 | Tier 2 | |
 |---|---|---|---|
-| Source | 1,577 | **4,644** | +3,067 |
-| Tests | 499 | **4,224** | +3,725 |
+| Source | 1,577 | **4,654** | +3,077 |
+| Tests | 499 | **4,257** | +3,758 |
 | Test count | 45 | **289** | x6.4 |
 | `loop.py` | 151 | **190** | +39 |
 
 **The line estimate was wrong again, in the same direction.** This file predicted
-~3,400-3,800 source lines; the answer is 4,644, about 25% over. That is the third time an
+~3,400-3,800 source lines; the answer is 4,654, about 25% over the top of that range. That is the third time an
 estimate here has run low: `04-folder-trees.md` predicted ~700 for Tier 1, which came in at
 1,577. The pattern is consistent enough to use. **Assume any estimate in these docs is roughly
 1.3-2x low**, and read Tier 3's "~4,000" in `docs/06-product-roadmap.md` as nearer 9,000-12,000.
 
-Where the extra went is not mysterious: tests grew faster than source, x8.5 against x2.9. Steps
+Where the extra went is not mysterious: tests grew faster than source, x8.5 against x3.0. Steps
 3, 4 and 8 are mostly *adversarial* tests — symlinked parents, `..` smuggled back through a
 rebuilt path, indented secrets, a failure arriving after output — and each is three lines of fix
 behind twenty lines of test proving the fix matters.

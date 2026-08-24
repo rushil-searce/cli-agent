@@ -77,6 +77,11 @@ What this tier contains, and what it deliberately does not.
 
 ## Part 2 — What Tier 1 lacks, and where Tier 2 puts it
 
+> **Every gap below was closed in Tier 2 — see [`TIER-2.md`](TIER-2.md).** The table is kept in
+> its original future tense on purpose: the point of it was to pair each gap with the seam it
+> would plug into, and that pairing turned out to be right. Reading it as a prediction that came
+> true is more useful than reading a rewritten past tense.
+
 Every gap below already has a seam waiting. **That is the point of the tier** — if any of these
 required changing the loop, the provider interface, or the event vocabulary, the layering would
 have been wrong.
