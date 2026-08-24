@@ -23,7 +23,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 from omega.agent_events import AgentEvent
-from omega.builtin_tools import DEFAULT_TOOLS
+from omega.builtin_tools import build_tools
 from omega.harness import Harness
 from omega.loop import DEFAULT_MAX_TURNS
 from omega.provider import ModelProvider
@@ -177,7 +177,8 @@ def main() -> None:
         provider=provider,
         model=args.model,
         system=SYSTEM_PROMPT,
-        tools=DEFAULT_TOOLS,
+        # Rooted at the directory omega was started in: that is the fence.
+        tools=build_tools(Path.cwd()),
         max_turns=args.max_turns,
     )
 

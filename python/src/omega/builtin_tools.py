@@ -1,28 +1,55 @@
-"""The three Tier-1 tools: read a file, write a file, run a command.
+"""The four file/shell tools: read, write, edit, run.
 
-Ported from the working logic in the repo-root `agent.py`, with three changes:
+Tier 1 had three of these and no fence around any of them. Tier 2 adds `edit`
+and puts all of them inside one:
 
-* **output goes through a budget** (`truncate.py`) — the failure that ends a
-  session fastest
-* **failures raise** rather than returning a flag, so there is one way to fail
-  and the loop owns the conversion
-* **a failing command carries its output with it**, because "exited with code 1"
-  tells the model nothing it can act on
+* **paths go through `paths.py`** — one confinement check, not four (failure #4)
+* **writes go through `file_lock.py`** — one lock per resolved file (failure #8)
+* **file I/O happens in a thread** — a synchronous `read_text` on a large file
+  blocks the whole event loop, and it is also what makes the lock load-bearing
+  rather than decorative
+* **`run_shell` has a timeout** and honours cancellation, so a hung command is
+  survivable
 
-Deliberately absent at this tier: `edit`, path confinement, and any approval
-check. Nothing here is safe to point at a directory you care about — run it in a
-scratch folder. `../docs/00-concepts/security.md` explains what Tier 2 adds and why.
+Tools are built by a **factory**, not declared as module constants. The root has
+to be decided by the caller: baking `Path.cwd()` in at import time makes it
+impossible to test two roots in one process, and gives `--fake` in a temp
+directory the wrong fence.
+
+Still true, and stated rather than implied: **`run_shell` is not confined by any
+of this.** `cd .. && cat ~/.ssh/id_rsa` walks straight out, and parsing shell
+commands to prevent that is a game you lose. The shell is covered by the
+approval gate instead, and real containment is Tier 3+ sandboxing — for which
+`prepare_shell` below is the seam.
 """
 
 from __future__ import annotations
 
 import asyncio
+import contextlib
+import difflib
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
+from omega.file_lock import FILE_LOCKS, FileLocks
+from omega.paths import resolve_within_root
 from omega.tools import Tool, ToolError, ToolResult
 from omega.truncate import MAX_BYTES, MAX_LINES, truncate_output
 from omega.types import CancellationToken
+
+#: How long a command may run before it is killed. A hung command used to hang
+#: the agent forever, which is the kind of bug that makes a tool untrustworthy.
+DEFAULT_TIMEOUT_SECONDS = 120.0
+
+#: How often to check in on a running command. Small enough that Ctrl-C feels
+#: immediate, large enough not to spin.
+_POLL_SECONDS = 0.1
+
+#: Rewrites a command before it runs. **The sandboxing seam.** A Tier 3+ sandbox
+#: wraps the command here (`sandbox-exec -f profile ...`) without any tool,
+#: hook, or loop needing to change.
+ShellPrepare = Callable[[str], str]
 
 # The model is told the budget it will be subject to. Interpolated from the same
 # constants the code enforces, so the description cannot drift from the behaviour.
@@ -32,111 +59,307 @@ _TRUNCATION_NOTE = (
     "file and its path is included in the result."
 )
 
-async def _read_file(arguments: dict[str, Any], signal: CancellationToken | None) -> ToolResult:
-    path = Path(arguments["path"])
-    try:
-        raw = path.read_text(encoding="utf-8")
-    except FileNotFoundError as exc:
-        raise ToolError(f"File not found: {path}") from exc
-    except IsADirectoryError as exc:
-        raise ToolError(f"Not a file: {path}") from exc
-    except UnicodeDecodeError as exc:
-        raise ToolError(f"Not a UTF-8 text file: {path}") from exc
-    except OSError as exc:
-        raise ToolError(f"Could not read {path}: {exc}") from exc
-
-    body, truncation = truncate_output(raw, label="read")
-    return ToolResult(
-        content=body,  # type: ignore[arg-type]
-        details={"path": str(path), "truncated": truncation.truncated},
-    )
-
-
-async def _write_file(arguments: dict[str, Any], signal: CancellationToken | None) -> ToolResult:
-    path = Path(arguments["path"])
-    content = arguments["content"]
-    try:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(content, encoding="utf-8")
-    except OSError as exc:
-        raise ToolError(f"Could not write {path}: {exc}") from exc
-
-    return ToolResult(
-        content=f"Wrote {len(content)} chars to {path}",  # type: ignore[arg-type]
-        details={"path": str(path), "chars": len(content)},
-    )
-
-
-async def _run_shell(arguments: dict[str, Any], signal: CancellationToken | None) -> ToolResult:
-    command = arguments["command"]
-
-    process = await asyncio.create_subprocess_shell(
-        command,
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.STDOUT,
-    )
-    stdout, _ = await process.communicate()
-    raw = stdout.decode("utf-8", errors="replace") or "(no output)"
-
-    body, truncation = truncate_output(raw, label="shell")
-
-    if process.returncode != 0:
-        # The output is the whole point of the error. A bare "exited with code 1"
-        # leaves the model guessing and it will retry the same thing.
-        raise ToolError(f"{body}\n\nCommand exited with code {process.returncode}")
-
-    return ToolResult(
-        content=body,  # type: ignore[arg-type]
-        details={"exit_code": process.returncode, "truncated": truncation.truncated},
-    )
-
-
-READ_FILE = Tool(
-    name="read_file",
-    description=(
-        f"Read a UTF-8 text file and return its contents. {_TRUNCATION_NOTE}. "
-        "Whenever you are asked to read a file, use this tool."
-    ),
-    parameters={
-        "type": "object",
-        "properties": {"path": {"type": "string", "description": "Path to the file to read."}},
-        "required": ["path"],
-    },
-    execute=_read_file,
+_CONFINEMENT_NOTE = (
+    "Paths may be relative or absolute but must resolve inside the working "
+    "directory; anything outside it is refused."
 )
 
-WRITE_FILE = Tool(
-    name="write_file",
-    description=(
-        "Write text to a file, replacing anything already there. "
-        "Parent directories are created if needed."
-        "Whenever you are asked to write to a file, use this tool."
-    ),
-    parameters={
-        "type": "object",
-        "properties": {
-            "path": {"type": "string", "description": "Path to the file to write."},
-            "content": {"type": "string", "description": "The full contents to write."},
-        },
-        "required": ["path", "content"],
-    },
-    execute=_write_file,
-)
 
-RUN_SHELL = Tool(
-    name="run_shell",
-    description=(
-        "Run a shell command in the current working directory and return its combined "
-        "stdout and stderr. A non-zero exit is reported as an error, with the output "
-        f"included. {_TRUNCATION_NOTE}"
-        "Whenever you are asked to run a command, use this tool."
-    ),
-    parameters={
-        "type": "object",
-        "properties": {"command": {"type": "string", "description": "The command to run."}},
-        "required": ["command"],
-    },
-    execute=_run_shell,
-)
+def _write_text(path: Path, content: str) -> None:
+    """Create the parents, then write. Runs in a thread.
 
-DEFAULT_TOOLS: list[Tool] = [READ_FILE, WRITE_FILE, RUN_SHELL]
+    The parents are created *after* confinement has already approved the path —
+    Tier 1 did the `mkdir` first, which meant a refused write had still created
+    directories somewhere it had no business being.
+    """
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(content, encoding="utf-8")
+
+
+def _read_text(path: Path) -> str:
+    return path.read_text(encoding="utf-8")
+
+
+def _as_tool_error(path: Path, exc: OSError | UnicodeDecodeError) -> ToolError:
+    """One place for "why couldn't you read that", in words a model can act on."""
+    if isinstance(exc, FileNotFoundError):
+        return ToolError(f"File not found: {path}")
+    if isinstance(exc, IsADirectoryError):
+        return ToolError(f"Not a file: {path}")
+    if isinstance(exc, UnicodeDecodeError):
+        return ToolError(f"Not a UTF-8 text file: {path}")
+    return ToolError(f"Could not read {path}: {exc}")
+
+
+def _occurrence_lines(text: str, needle: str) -> list[int]:
+    """1-based line numbers where `needle` starts. For the ambiguity message."""
+    lines: list[int] = []
+    start = 0
+    while True:
+        index = text.find(needle, start)
+        if index == -1:
+            return lines
+        lines.append(text.count("\n", 0, index) + 1)
+        start = index + 1
+
+
+async def _terminate(process: asyncio.subprocess.Process, pending: asyncio.Task[Any]) -> None:
+    """Kill a command and reap it, leaving no zombie and no orphaned task."""
+    with contextlib.suppress(ProcessLookupError):
+        process.kill()
+    pending.cancel()
+    with contextlib.suppress(asyncio.CancelledError):
+        await pending
+    with contextlib.suppress(ProcessLookupError):
+        await process.wait()
+
+
+def build_tools(
+    root: Path | None = None,
+    *,
+    timeout: float = DEFAULT_TIMEOUT_SECONDS,
+    locks: FileLocks | None = None,
+    prepare_shell: ShellPrepare | None = None,
+) -> list[Tool]:
+    """The four tools, fenced into `root` (the current directory by default).
+
+    A factory rather than four constants, because the fence is a property of the
+    session and not of the module. The closures below capture the root, so no
+    tool can be handed the wrong one by accident.
+    """
+    confine = (root if root is not None else Path.cwd()).resolve()
+    table = locks if locks is not None else FILE_LOCKS
+
+    async def read_file(
+        arguments: dict[str, Any], signal: CancellationToken | None
+    ) -> ToolResult:
+        path = resolve_within_root(arguments["path"], confine)
+        try:
+            raw = await asyncio.to_thread(_read_text, path)
+        except (OSError, UnicodeDecodeError) as exc:
+            raise _as_tool_error(path, exc) from exc
+
+        body, truncation = truncate_output(raw, label="read")
+        return ToolResult(
+            content=body,  # type: ignore[arg-type]
+            details={"path": str(path), "truncated": truncation.truncated},
+        )
+
+    async def write_file(
+        arguments: dict[str, Any], signal: CancellationToken | None
+    ) -> ToolResult:
+        path = resolve_within_root(arguments["path"], confine)
+        content = arguments["content"]
+
+        async with table.for_path(path):
+            try:
+                await asyncio.to_thread(_write_text, path, content)
+            except OSError as exc:
+                raise ToolError(f"Could not write {path}: {exc}") from exc
+
+        return ToolResult(
+            content=f"Wrote {len(content)} chars to {path}",  # type: ignore[arg-type]
+            details={"path": str(path), "chars": len(content)},
+        )
+
+    async def edit_file(
+        arguments: dict[str, Any], signal: CancellationToken | None
+    ) -> ToolResult:
+        """Replace one exact, unique run of text.
+
+        Uniqueness is required rather than "replace the first match". A model
+        that meant the second occurrence and silently got the first has made a
+        wrong edit that looks like a successful one — the worst outcome
+        available. Refusing costs one turn and asks for more context.
+        """
+        path = resolve_within_root(arguments["path"], confine)
+        old = arguments["old_text"]
+        new = arguments["new_text"]
+
+        if not old:
+            raise ToolError(
+                "old_text must not be empty. Use write_file to create a file or "
+                "replace its whole contents."
+            )
+
+        async with table.for_path(path):
+            try:
+                text = await asyncio.to_thread(_read_text, path)
+            except (OSError, UnicodeDecodeError) as exc:
+                raise _as_tool_error(path, exc) from exc
+
+            occurrences = text.count(old)
+            if occurrences == 0:
+                raise ToolError(
+                    f"old_text was not found in {path}. It must match the file exactly, "
+                    "including whitespace and indentation. Read the file again and copy "
+                    "the text you want to replace."
+                )
+            if occurrences > 1:
+                where = ", ".join(str(line) for line in _occurrence_lines(text, old))
+                detail, _ = truncate_output(where, label="edit-matches")
+                raise ToolError(
+                    f"old_text appears {occurrences} times in {path} (lines {detail}). "
+                    "It must match exactly once - include more surrounding context to "
+                    "make it unique."
+                )
+
+            updated = text.replace(old, new, 1)
+            try:
+                await asyncio.to_thread(path.write_text, updated, encoding="utf-8")
+            except OSError as exc:
+                raise ToolError(f"Could not write {path}: {exc}") from exc
+
+        # The content/details split, finally doing something. The model gets one
+        # line; a renderer gets the whole diff and it costs no tokens.
+        diff = "".join(
+            difflib.unified_diff(
+                text.splitlines(keepends=True),
+                updated.splitlines(keepends=True),
+                fromfile=f"a/{path.name}",
+                tofile=f"b/{path.name}",
+            )
+        )
+        removed = old.count("\n") + 1
+        added = new.count("\n") + 1
+        return ToolResult(
+            content=f"Edited {path}: replaced {removed} line(s) with {added}.",  # type: ignore[arg-type]
+            details={
+                "path": str(path),
+                "diff": diff,
+                "lines_removed": removed,
+                "lines_added": added,
+            },
+        )
+
+    async def run_shell(
+        arguments: dict[str, Any], signal: CancellationToken | None
+    ) -> ToolResult:
+        command = arguments["command"]
+        if prepare_shell is not None:
+            command = prepare_shell(command)
+
+        process = await asyncio.create_subprocess_shell(
+            command,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.STDOUT,
+            cwd=confine,
+        )
+
+        # A task rather than `wait_for(process.communicate(), ...)`: a timeout on
+        # wait_for cancels communicate() mid-read, which can lose output and
+        # leave the pipes in a bad state. Polling a task lets us check the
+        # cancellation signal without ever interrupting the read.
+        reading: asyncio.Task[tuple[bytes, bytes]] = asyncio.ensure_future(
+            process.communicate()
+        )
+        waited = 0.0
+        while True:
+            done, _ = await asyncio.wait({reading}, timeout=_POLL_SECONDS)
+            if reading in done:
+                stdout, _ = reading.result()
+                break
+
+            waited += _POLL_SECONDS
+            if signal is not None and signal.is_cancelled():
+                await _terminate(process, reading)
+                raise ToolError(f"Cancelled after {waited:.1f}s: {command}")
+            if waited >= timeout:
+                await _terminate(process, reading)
+                raise ToolError(
+                    f"Command timed out after {timeout:.0f}s and was killed: {command}"
+                )
+
+        raw = stdout.decode("utf-8", errors="replace") or "(no output)"
+        body, truncation = truncate_output(raw, label="shell")
+
+        if process.returncode != 0:
+            # The output is the whole point of the error. A bare "exited with code 1"
+            # leaves the model guessing and it will retry the same thing.
+            raise ToolError(f"{body}\n\nCommand exited with code {process.returncode}")
+
+        return ToolResult(
+            content=body,  # type: ignore[arg-type]
+            details={"exit_code": process.returncode, "truncated": truncation.truncated},
+        )
+
+    return [
+        Tool(
+            name="read_file",
+            description=(
+                f"Read a UTF-8 text file and return its contents. {_TRUNCATION_NOTE} "
+                f"{_CONFINEMENT_NOTE} "
+                "Whenever you are asked to read a file, use this tool."
+            ),
+            parameters={
+                "type": "object",
+                "properties": {
+                    "path": {"type": "string", "description": "Path to the file to read."}
+                },
+                "required": ["path"],
+            },
+            execute=read_file,
+        ),
+        Tool(
+            name="write_file",
+            description=(
+                "Write text to a file, replacing anything already there. Parent "
+                f"directories are created if needed. {_CONFINEMENT_NOTE} "
+                "Prefer edit_file for changing part of an existing file; use this to "
+                "create a file or replace it entirely."
+            ),
+            parameters={
+                "type": "object",
+                "properties": {
+                    "path": {"type": "string", "description": "Path to the file to write."},
+                    "content": {"type": "string", "description": "The full contents to write."},
+                },
+                "required": ["path", "content"],
+            },
+            execute=write_file,
+        ),
+        Tool(
+            name="edit_file",
+            description=(
+                "Replace an exact run of text in a file. old_text must appear exactly "
+                "once - copy it verbatim from the file, including whitespace and "
+                "indentation, and include enough surrounding context to be unique. "
+                f"{_CONFINEMENT_NOTE} "
+                "Prefer this over write_file for changing part of a file."
+            ),
+            parameters={
+                "type": "object",
+                "properties": {
+                    "path": {"type": "string", "description": "Path to the file to edit."},
+                    "old_text": {
+                        "type": "string",
+                        "description": "The exact text to replace. Must occur exactly once.",
+                    },
+                    "new_text": {
+                        "type": "string",
+                        "description": "What to put in its place. May be empty to delete.",
+                    },
+                },
+                "required": ["path", "old_text", "new_text"],
+            },
+            execute=edit_file,
+        ),
+        Tool(
+            name="run_shell",
+            description=(
+                "Run a shell command in the working directory and return its combined "
+                "stdout and stderr. A non-zero exit is reported as an error, with the "
+                f"output included. {_TRUNCATION_NOTE} "
+                f"Commands are killed after {DEFAULT_TIMEOUT_SECONDS:.0f} seconds. "
+                "Whenever you are asked to run a command, use this tool."
+            ),
+            parameters={
+                "type": "object",
+                "properties": {
+                    "command": {"type": "string", "description": "The command to run."}
+                },
+                "required": ["command"],
+            },
+            execute=run_shell,
+        ),
+    ]

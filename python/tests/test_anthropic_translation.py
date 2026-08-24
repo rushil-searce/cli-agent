@@ -6,7 +6,9 @@ the kind you discover by having a request rejected, so they are worth pinning.
 
 from __future__ import annotations
 
-from omega.builtin_tools import READ_FILE
+from pathlib import Path
+
+from omega.builtin_tools import build_tools
 from omega.providers.anthropic import (
     normalise_stop_reason,
     to_anthropic_messages,
@@ -16,9 +18,10 @@ from omega.types import AssistantMessage, TextContent, ToolCall, ToolResultMessa
 
 
 def test_tools_become_input_schema() -> None:
-    [tool] = to_anthropic_tools([READ_FILE])
+    read_file = next(t for t in build_tools(Path.cwd()) if t.name == 'read_file')
+    [tool] = to_anthropic_tools([read_file])
     assert tool["name"] == "read_file"
-    assert tool["input_schema"] == READ_FILE.parameters
+    assert tool["input_schema"] == read_file.parameters
 
 
 def test_user_message_round_trips() -> None:

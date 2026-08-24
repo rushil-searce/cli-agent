@@ -172,6 +172,10 @@ lands without surgery.
 - **`--fake` still replays a fixed script.** It demonstrates machinery, not intelligence.
 - **Approval memory is per-session.** No persisted trust store; that arrives with config.
 - **Nothing is sandboxed.** Approvals and path confinement are policy, not containment.
+- **`run_shell` is not path-confined.** `cd .. && cat ~/.ssh/id_rsa` walks straight out of the
+  root, and parsing shell commands to prevent that is a game you lose. The shell is covered by
+  the approval gate instead; real containment is Tier 3+ sandboxing, and `prepare_shell` in
+  `builtin_tools.py` is the seam it plugs into.
 
 ---
 
