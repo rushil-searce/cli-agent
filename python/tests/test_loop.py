@@ -1,8 +1,12 @@
-"""The tests that prove Tier 1.
+"""The tests that prove the loop.
 
 Every one runs offline: the provider is faked at the interface boundary, so
 there is no network, no API key, and no cost. That is the payoff for writing
 `providers/fake.py` before the real adapter.
+
+Tier 2 changed what the loop *emits* — the ten agent events, not the twelve
+provider ones — so the event assertions here changed with it. Everything about
+*termination* is untouched, because none of it should have needed to change.
 """
 
 from __future__ import annotations
@@ -57,6 +61,9 @@ async def _run(
     return messages, events, provider
 
 
+# ----------------------------------------------------------------- termination
+
+
 async def test_stops_when_no_tool_calls() -> None:
     messages, _events, provider = await _run([text_turn("all done")])
 
@@ -84,6 +91,41 @@ async def test_stop_condition_follows_content_not_stop_reason() -> None:
     assert [m.role for m in messages] == ["user", "assistant", "toolResult", "assistant"]
 
 
+async def test_max_turns_halts_a_provider_that_never_stops() -> None:
+    _messages, events, provider = await _run([tool_turn("ok", {}) for _ in range(10)], max_turns=3)
+
+    assert len(provider.calls) == 3
+    assert events[-1].type == "agent_end"
+    assert events[-1].reason == "max_turns"
+    assert "max_turns=3" in events[-1].error_message
+
+
+async def test_terminal_error_ends_the_run_without_raising() -> None:
+    from omega.events import AssistantErrorEvent
+
+    failed = AssistantMessage(model="test-model", stop_reason="error", error_message="upstream 500")
+    messages, events, provider = await _run(
+        [[AssistantErrorEvent(reason="error", error=failed)], text_turn("never reached")]
+    )
+
+    assert len(provider.calls) == 1, "the loop must not continue past a terminal error"
+    assert events[-1].type == "agent_end"
+    assert events[-1].reason == "error"
+    last = messages[-1]
+    assert isinstance(last, AssistantMessage)
+    assert last.stop_reason == "error"
+
+
+async def test_exactly_one_agent_end_even_on_failure() -> None:
+    """A consumer must never have to guess whether the run is over."""
+    _messages, events, _provider = await _run([tool_turn("ok", {})], max_turns=1)
+
+    assert [e.type for e in events].count("agent_end") == 1
+
+
+# ------------------------------------------------------------ tools as results
+
+
 async def test_tool_exception_becomes_error_result_and_run_continues() -> None:
     messages, _events, provider = await _run([tool_turn("boom", {}), text_turn("recovered")])
 
@@ -99,29 +141,6 @@ async def test_unknown_tool_becomes_error_result() -> None:
     result = next(m for m in messages if isinstance(m, ToolResultMessage))
     assert result.is_error is True
     assert "not found" in result.text
-
-
-async def test_max_turns_halts_a_provider_that_never_stops() -> None:
-    _messages, events, provider = await _run([tool_turn("ok", {}) for _ in range(10)], max_turns=3)
-
-    assert len(provider.calls) == 3
-    assert events[-1].type == "error"
-    assert "max_turns=3" in events[-1].error.error_message
-
-
-async def test_terminal_error_ends_the_run_without_raising() -> None:
-    from omega.events import AssistantErrorEvent
-
-    failed = AssistantMessage(model="test-model", stop_reason="error", error_message="upstream 500")
-    messages, events, provider = await _run(
-        [[AssistantErrorEvent(reason="error", error=failed)], text_turn("never reached")]
-    )
-
-    assert len(provider.calls) == 1, "the loop must not continue past a terminal error"
-    assert events[-1].type == "error"
-    last = messages[-1]
-    assert isinstance(last, AssistantMessage)
-    assert last.stop_reason == "error"
 
 
 async def test_tool_results_are_paired_to_their_calls() -> None:
@@ -144,10 +163,70 @@ async def test_provider_receives_the_growing_transcript() -> None:
     assert second.system == "be helpful"
 
 
-async def test_events_are_passed_through_in_order() -> None:
+# ---------------------------------------------------------- the ten vs the twelve
+
+
+async def test_agent_events_nest_agent_turn_message_tool() -> None:
+    """The exact shape of a two-turn run, written out.
+
+    Worth asserting literally rather than loosely: this sequence *is* the Layer 2
+    contract, and a UI is built against its order.
+    """
+    _messages, events, _provider = await _run([tool_turn("ok", {}), text_turn("done")])
+
+    assert [e.type for e in events] == [
+        "agent_start",
+        "turn_start",
+        "message_start",
+        "message_update",  # toolcall_start
+        "message_update",  # toolcall_end
+        "message_end",
+        "tool_execution_start",
+        "tool_execution_end",
+        "turn_end",
+        "turn_start",
+        "message_start",
+        "message_update",  # text_start
+        "message_update",  # text_delta
+        "message_update",  # text_end
+        "message_end",
+        "turn_end",
+        "agent_end",
+    ]
+
+
+async def test_every_provider_event_is_still_reachable() -> None:
+    """Moving up a level must not lose the token stream.
+
+    All twelve travel on `stream_event`, so a renderer that wants deltas gets
+    them and one that wants progress can ignore them.
+    """
     _messages, events, _provider = await _run([text_turn("hi")])
 
-    assert [e.type for e in events] == ["start", "text_start", "text_delta", "text_end", "done"]
+    carried = [e.stream_event.type for e in events if hasattr(e, "stream_event")]
+    assert carried == ["start", "text_start", "text_delta", "text_end", "done"]
+
+
+async def test_tool_results_now_have_an_event_of_their_own() -> None:
+    """The Tier 1 gap, closed.
+
+    `cli.py` used to report tool results by watching the transcript list grow,
+    after the fact, because no event described them. Now one does.
+    """
+    _messages, events, _provider = await _run([tool_turn("ok", {"n": 1}), text_turn("done")])
+
+    ends = [e for e in events if e.type == "tool_execution_end"]
+    assert len(ends) == 1
+    assert ends[0].tool_call.name == "ok"
+    assert "ran with {'n': 1}" in ends[0].result.text
+
+
+async def test_turns_are_numbered_from_zero_and_paired() -> None:
+    _messages, events, _provider = await _run([tool_turn("ok", {}), text_turn("done")])
+
+    starts = [e.turn for e in events if e.type == "turn_start"]
+    ends = [e.turn for e in events if e.type == "turn_end"]
+    assert starts == ends == [0, 1]
 
 
 @pytest.mark.parametrize("turns", [1, 5])

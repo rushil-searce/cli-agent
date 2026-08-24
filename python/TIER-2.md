@@ -32,7 +32,7 @@ interruptible.* Tier 2 addresses exactly those three words, and proves the layer
 | Providers | one, **unproven** | two, and the second one is the proof |
 | Auth | a static `api_key` string | a resolver callback, resolved per request |
 | Tokens | captured, unused | summed, priced, and shown |
-| Loop hooks | none | five of the nine, filled |
+| Loop hooks | none | six of the nine declared, four wired |
 
 ### The nine failures, tier by tier
 
@@ -76,7 +76,7 @@ fixes. You will be able to watch both problems approach before Tier 3 solves the
 |---|---|---|
 | **The 10 agent events** | `agent_events.py` | Coarse progress — `turn_start`, `tool_execution_start`. A **separate file** from the 12 |
 | **The harness** | `harness.py` | Something has to own `messages`, or persistence, cancellation and the queues have nowhere to live |
-| **Hook bundle** | `hooks.py` | `before_tool_call` · `after_tool_call` · `transform_context` · `convert_to_llm` · `get_api_key` |
+| **Hook bundle** | `hooks.py` | `before_tool_call` · `after_tool_call` · `convert_to_llm` · `transform_context` · the two queue sources. **Not** `get_api_key` — auth is a provider-level resolver, one layer lower |
 | Concrete cancellation | `harness.py` | Tier 1 threaded the `signal` everywhere and created nothing. This creates one |
 | **Orphaned tool-result repair** | `harness.py` | An unanswered tool call is a **permanent** API error. Runs on interrupt *and* on resume |
 | Steering queue | `harness.py` | Type while it works; picked up between turns |

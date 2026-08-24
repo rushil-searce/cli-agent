@@ -1,8 +1,9 @@
 """A print-based REPL.
 
-Deliberately **not** a terminal UI. At Tier 1 a TUI would hide whether the loop
-works; plain `print` makes every event visible. A real UI arrives once there is
-an event vocabulary designed for it.
+Deliberately **not** a terminal UI. At Tier 2 a TUI would still hide more than it
+shows; plain `print` keeps every event visible. A real UI arrives at Tier 3, and
+it will subscribe to exactly the events this file already reads — that is the
+test of whether the vocabulary was designed for a renderer or for a printer.
 
 `--fake` runs the whole agent against scripted responses — no key, no network,
 no credits. It exercises the same loop, the same tools, and the same streaming
@@ -20,11 +21,11 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 from omega.builtin_tools import DEFAULT_TOOLS
-from omega.loop import DEFAULT_MAX_TURNS, run_agent_loop
+from omega.harness import Harness
+from omega.loop import DEFAULT_MAX_TURNS
 from omega.provider import ModelProvider
 from omega.providers.anthropic import DEFAULT_MODEL, AnthropicProvider
 from omega.providers.fake import FakeProvider, text_turn, tool_turn
-from omega.types import AgentMessage, ToolResultMessage, UserMessage
 
 SYSTEM_PROMPT = """You are omega, a terminal coding agent. Use the tools to inspect and edit files.
 
@@ -32,6 +33,9 @@ When asked to perform a coding task:
 1. Inspect the codebase before changing it.
 2. Make the change with write_file, or run commands with run_shell.
 3. Verify your work before reporting that you are done."""
+
+_ARG_PREVIEW = 80
+_RESULT_PREVIEW = 100
 
 
 def _fake_provider() -> FakeProvider:
@@ -50,62 +54,46 @@ def _fake_provider() -> FakeProvider:
     return FakeProvider([scenario[i % 2] for i in range(40)])
 
 
-async def _run_turn(
-    provider: ModelProvider,
-    model: str,
-    messages: list[AgentMessage],
-    max_turns: int,
-) -> None:
-    """One user prompt, run to completion, printed as it happens."""
-    printed_messages = len(messages)
-    streaming_text = False
+def _clip(text: str, limit: int) -> str:
+    return text if len(text) <= limit else text[: limit - 3] + "..."
 
-    async for event in run_agent_loop(
-        provider=provider,
-        model=model,
-        system=SYSTEM_PROMPT,
-        messages=messages,
-        tools=DEFAULT_TOOLS,
-        max_turns=max_turns,
-    ):
-        if event.type == "text_delta":
-            print(event.delta, end="", flush=True)
-            streaming_text = True
 
-        elif event.type == "text_end":
-            if streaming_text:
+async def _run_turn(harness: Harness, prompt: str) -> None:
+    """One user prompt, run to completion, printed as it happens.
+
+    Worth comparing against the Tier 1 version. That one had to watch the
+    transcript list grow to notice tool results, because no event described them,
+    and it tracked a `streaming_text` flag by hand to know when to emit a
+    newline. Both of those were symptoms of reading a vocabulary built for the
+    layer below. Every branch here is driven by an event that means what it says.
+    """
+    async for event in harness.run(prompt):
+        if event.type == "message_update":
+            # The twelve still travel; this is where they arrive.
+            raw = event.stream_event
+            if raw.type == "text_delta":
+                print(raw.delta, end="", flush=True)
+            elif raw.type == "text_end":
                 print()
-                streaming_text = False
 
-        elif event.type == "toolcall_end":
+        elif event.type == "tool_execution_start":
             call = event.tool_call
-            preview = str(call.arguments)
-            if len(preview) > 80:
-                preview = preview[:77] + "..."
-            print(f"  → {call.name}({preview})")
+            print(f"  → {call.name}({_clip(str(call.arguments), _ARG_PREVIEW)})")
 
-        elif event.type == "error":
-            if streaming_text:
-                print()
-                streaming_text = False
-            print(f"\n[error] {event.error.error_message}", file=sys.stderr)
+        elif event.type == "tool_execution_end":
+            result = event.result
+            marker = "x" if result.is_error else "<"
+            first_line = result.text.splitlines()[0] if result.text else ""
+            print(f"  {marker} {_clip(first_line, _RESULT_PREVIEW)}")
 
-        # Tool results are appended to `messages` by the loop. Tier 1 has no
-        # event for them — the ten agent events in Tier 2 add one — so they are
-        # reported here as they appear in the transcript.
-        while printed_messages < len(messages):
-            message = messages[printed_messages]
-            printed_messages += 1
-            if isinstance(message, ToolResultMessage):
-                marker = "x" if message.is_error else "<"
-                first_line = message.text.splitlines()[0] if message.text else ""
-                if len(first_line) > 100:
-                    first_line = first_line[:97] + "..."
-                print(f"  {marker} {first_line}")
+        elif event.type == "agent_end" and event.reason != "stop":
+            # `stop` is the only success. The other three all mean "unfinished",
+            # and a user should be told which one it was.
+            print(f"\n[{event.reason}] {event.error_message or ''}", file=sys.stderr)
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(prog="omega", description="A terminal coding agent (Tier 1).")
+    parser = argparse.ArgumentParser(prog="omega", description="A terminal coding agent (Tier 2).")
     parser.add_argument(
         "--fake",
         action="store_true",
@@ -134,7 +122,16 @@ def main() -> None:
 
     print("Type 'exit' to quit.\n")
 
-    messages: list[AgentMessage] = []
+    # One harness for the whole session: it owns the transcript, so successive
+    # prompts are a conversation rather than a series of unrelated questions.
+    harness = Harness(
+        provider=provider,
+        model=args.model,
+        system=SYSTEM_PROMPT,
+        tools=DEFAULT_TOOLS,
+        max_turns=args.max_turns,
+    )
+
     while True:
         try:
             prompt = input("You: ")
@@ -147,13 +144,13 @@ def main() -> None:
         if not prompt.strip():
             continue
 
-        messages.append(UserMessage(content=prompt))
         try:
-            asyncio.run(_run_turn(provider, args.model, messages, args.max_turns))
+            asyncio.run(_run_turn(harness, prompt))
         except KeyboardInterrupt:
-            # Tier 1 has no cancellation token wired up, so an interrupt ends the
-            # turn abruptly and may leave a tool call unanswered. Tier 2 fixes
-            # this properly; until then, say so rather than pretending.
+            # Still true at Step 1: nothing creates a cancellation token yet, so
+            # an interrupt ends the turn abruptly and may leave a tool call
+            # unanswered. Step 2 fixes this properly; until then, say so rather
+            # than pretending.
             print(
                 "\n[interrupted - the transcript may now contain an unanswered "
                 "tool call; restart if the next turn fails]",
