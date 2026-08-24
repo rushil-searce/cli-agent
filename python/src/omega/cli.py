@@ -32,8 +32,11 @@ from omega.history import drop_empty_failed_turns
 from omega.hooks import AgentHooks
 from omega.loop import DEFAULT_MAX_TURNS
 from omega.provider import ModelProvider
-from omega.providers.anthropic import DEFAULT_MODEL, AnthropicProvider
+from omega.providers.anthropic import DEFAULT_MODEL as ANTHROPIC_MODEL
+from omega.providers.anthropic import AnthropicProvider
 from omega.providers.fake import FakeProvider, text_turn, tool_turn
+from omega.providers.openai import DEFAULT_MODEL as OPENAI_MODEL
+from omega.providers.openai import OpenAIProvider
 from omega.redact import redacting_hook
 from omega.session import JsonlSessionStore
 
@@ -235,18 +238,53 @@ def main() -> None:
         action="store_true",
         help="Do not write this session to disk.",
     )
-    parser.add_argument("--model", default=DEFAULT_MODEL, help="Model id.")
+    parser.add_argument(
+        "--provider",
+        choices=["anthropic", "openai"],
+        default="anthropic",
+        help=(
+            "Which wire format to speak. `openai` also reaches Groq, Together, "
+            "Ollama and vLLM - see --base-url."
+        ),
+    )
+    parser.add_argument(
+        "--base-url",
+        metavar="URL",
+        help=(
+            "Override the endpoint for --provider openai, e.g. "
+            "http://localhost:11434/v1 for Ollama."
+        ),
+    )
+    parser.add_argument(
+        "--model", default=None, help="Model id. Defaults to the provider's own default."
+    )
     parser.add_argument(
         "--max-turns", type=int, default=DEFAULT_MAX_TURNS, help="Loop iteration cap."
     )
     args = parser.parse_args()
 
+    # Choosing a provider is the *only* thing in this file that knows two of them
+    # exist. Everything below - the harness, the hooks, the tools, the renderer -
+    # is written against the interface and cannot tell which one it got.
     provider: ModelProvider
+    model = args.model
     if args.fake:
         provider = _fake_provider()
+        model = model or "fake-model"
         print("omega (fake provider - scripted responses, nothing is sent anywhere)")
-    else:
+    elif args.provider == "openai":
         # .env lives at the repo root, one level above this package.
+        load_dotenv(Path(__file__).resolve().parents[3] / ".env", override=True)
+        base_url = args.base_url or os.environ.get("OPENAI_BASE_URL")
+        if not os.environ.get("OPENAI_API_KEY") and not base_url:
+            sys.exit(
+                "OPENAI_API_KEY not set - add it to .env, or pass --base-url to reach a "
+                "local server (Ollama, vLLM) that does not need one."
+            )
+        provider = OpenAIProvider(base_url=base_url)
+        model = model or OPENAI_MODEL
+        print(f"omega ({model} via openai{f' at {base_url}' if base_url else ''})")
+    else:
         load_dotenv(Path(__file__).resolve().parents[3] / ".env", override=True)
         if not os.environ.get("ANTHROPIC_API_KEY"):
             sys.exit(
@@ -254,7 +292,8 @@ def main() -> None:
                 "or run `omega --fake` to try omega without a key."
             )
         provider = AnthropicProvider()
-        print(f"omega ({args.model})")
+        model = model or ANTHROPIC_MODEL
+        print(f"omega ({model})")
 
     print("Type 'exit' to quit.\n")
 
@@ -289,7 +328,7 @@ def main() -> None:
     # prompts are a conversation rather than a series of unrelated questions.
     harness = Harness(
         provider=provider,
-        model=args.model,
+        model=model,
         system=system,
         # Rooted at the directory omega was started in: that is the fence.
         tools=tools,
@@ -337,7 +376,7 @@ def main() -> None:
         # and #9 visible before they bite, which is what Tier 3 needs in order
         # to know where to put a threshold.
         usage = measure(
-            model=args.model, system=system, messages=harness.messages, tools=tools
+            model=model, system=system, messages=harness.messages, tools=tools
         )
         print(f"\n  [{usage} | {tracker}]")
         print()

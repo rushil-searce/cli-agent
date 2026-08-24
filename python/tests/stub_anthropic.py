@@ -17,6 +17,37 @@ from types import SimpleNamespace
 from typing import Any
 
 
+def _tool_path() -> list[Any]:
+    """A stream that requests a tool, with the arguments split mid-JSON."""
+    return [
+        SimpleNamespace(
+            type="message_start",
+            message=SimpleNamespace(usage=SimpleNamespace(input_tokens=11)),
+        ),
+        SimpleNamespace(
+            type="content_block_start",
+            index=0,
+            content_block=SimpleNamespace(type="tool_use", id="call_1", name="ok"),
+        ),
+        SimpleNamespace(
+            type="content_block_delta",
+            index=0,
+            delta=SimpleNamespace(type="input_json_delta", partial_json='{"path": '),
+        ),
+        SimpleNamespace(
+            type="content_block_delta",
+            index=0,
+            delta=SimpleNamespace(type="input_json_delta", partial_json='"a.txt"}'),
+        ),
+        SimpleNamespace(type="content_block_stop", index=0),
+        SimpleNamespace(
+            type="message_delta",
+            delta=SimpleNamespace(stop_reason="tool_use"),
+            usage=SimpleNamespace(output_tokens=7),
+        ),
+    ]
+
+
 def _happy_path() -> list[Any]:
     """The minimum well-formed stream: a message that says "hi" and stops."""
     return [
@@ -82,11 +113,8 @@ class _Messages:
             # Fails on connect, before anything is emitted - so a retry is safe.
             return _Stream([], fail_after=0, error=client.error)
 
-        return _Stream(
-            _happy_path(),
-            fail_after=client.fail_midstream_after,
-            error=client.error,
-        )
+        events = _tool_path() if client.script == "tool" else _happy_path()
+        return _Stream(events, fail_after=client.fail_midstream_after, error=client.error)
 
 
 class StubClient:
@@ -102,7 +130,9 @@ class StubClient:
         fail_times: int = 0,
         fail_midstream_after: int | None = None,
         error: Callable[[], Exception] = lambda: ConnectionError("stub"),
+        script: str = "text",
     ) -> None:
+        self.script = script
         self.fail_times = fail_times
         self.fail_midstream_after = fail_midstream_after
         self.error = error
