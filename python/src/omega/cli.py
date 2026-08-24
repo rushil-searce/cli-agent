@@ -32,6 +32,7 @@ from omega.provider import ModelProvider
 from omega.providers.anthropic import DEFAULT_MODEL, AnthropicProvider
 from omega.providers.fake import FakeProvider, text_turn, tool_turn
 from omega.redact import redacting_hook
+from omega.session import JsonlSessionStore
 
 SYSTEM_PROMPT = """You are omega, a terminal coding agent. Use the tools to inspect and edit files.
 
@@ -189,6 +190,21 @@ def main() -> None:
             "list - that is not a prompt you can skip."
         ),
     )
+    parser.add_argument(
+        "--resume",
+        action="store_true",
+        help="Continue the most recent session in this directory.",
+    )
+    parser.add_argument(
+        "--session",
+        metavar="ID",
+        help="Continue a specific session by id.",
+    )
+    parser.add_argument(
+        "--no-save",
+        action="store_true",
+        help="Do not write this session to disk.",
+    )
     parser.add_argument("--model", default=DEFAULT_MODEL, help="Model id.")
     parser.add_argument(
         "--max-turns", type=int, default=DEFAULT_MAX_TURNS, help="Loop iteration cap."
@@ -227,6 +243,8 @@ def main() -> None:
         after_tool_call=redacting_hook,
     )
 
+    store = None if args.no_save else JsonlSessionStore(root)
+
     # One harness for the whole session: it owns the transcript, so successive
     # prompts are a conversation rather than a series of unrelated questions.
     harness = Harness(
@@ -237,7 +255,18 @@ def main() -> None:
         tools=build_tools(root),
         hooks=hooks,
         max_turns=args.max_turns,
+        store=store,
     )
+
+    if args.session or args.resume:
+        if store is None:
+            sys.exit("Cannot resume with --no-save.")
+        session_id = args.session or store.latest_session_id()
+        if session_id is None:
+            print("No previous session found in this directory - starting a new one.")
+        else:
+            restored = harness.resume(session_id)
+            print(f"Resumed {session_id} ({restored} messages).")
 
     while True:
         try:
@@ -247,6 +276,8 @@ def main() -> None:
             break
 
         if prompt.strip().lower() in {"exit", "quit"}:
+            if harness.session_id is not None:
+                print(f"Session saved: {harness.session_id} (resume with `omega --resume`)")
             break
         if not prompt.strip():
             continue

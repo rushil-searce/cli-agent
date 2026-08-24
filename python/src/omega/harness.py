@@ -27,6 +27,7 @@ from omega.cancellation import CancelSignal
 from omega.hooks import AgentHooks
 from omega.loop import DEFAULT_MAX_TURNS, run_agent_loop
 from omega.provider import ModelProvider
+from omega.session import SessionStore
 from omega.tools import Tool
 from omega.types import AgentMessage, AssistantMessage, ToolResultMessage, UserMessage
 
@@ -64,6 +65,7 @@ class Harness:
         hooks: AgentHooks | None = None,
         max_turns: int = DEFAULT_MAX_TURNS,
         signal: CancelSignal | None = None,
+        store: SessionStore | None = None,
     ) -> None:
         self.provider = provider
         self.model = model
@@ -80,6 +82,16 @@ class Harness:
         #: The transcript. The harness owns it; the loop appends to it.
         self.messages: list[AgentMessage] = []
         self._listeners: list[AgentListener] = []
+
+        #: Persistence is optional. Without a store the harness behaves exactly
+        #: as it did in Step 1 and touches no files.
+        self.store = store
+        self.session_id: str | None = None
+
+        #: How much of `messages` is already on disk. The loop appends directly
+        #: to the list, and so does `repair_orphans`, so tracking a high-water
+        #: mark catches every writer without any of them knowing about storage.
+        self._persisted = 0
 
     def add_listener(self, listener: AgentListener) -> None:
         """Subscribe to the agent events. Boundary D, and it only goes one way."""
@@ -149,6 +161,42 @@ class Harness:
         self.messages[:] = repaired
         return fixed
 
+    # ---------------------------------------------------------------- sessions
+
+    def resume(self, session_id: str) -> int:
+        """Load a stored transcript into this harness. Returns how many messages.
+
+        **Repairs orphans immediately**, and that is the point where Step 2 and
+        Step 5 meet. An interrupted session is exactly the one you want to
+        resume, and exactly the one carrying an unanswered tool call — which
+        providers reject on every future request. Loading it without repairing it
+        would hand back a conversation that can never be continued.
+        """
+        if self.store is None:
+            raise ValueError("Cannot resume without a session store.")
+
+        self.session_id = session_id
+        self.messages[:] = self.store.load(session_id)
+        self._persisted = len(self.messages)
+
+        # Anything the repair adds is beyond the high-water mark, so it is
+        # written on the next flush and the session is only repaired once.
+        self.repair_orphans()
+        return len(self.messages)
+
+    def _flush(self) -> None:
+        """Write whatever is not on disk yet.
+
+        Called after every event rather than at the end of a run: the process
+        dying mid-task is the event persistence exists for, so a transcript that
+        is only saved on success saves nothing worth having.
+        """
+        if self.store is None or self.session_id is None:
+            return
+        while self._persisted < len(self.messages):
+            self.store.append(self.session_id, self.messages[self._persisted])
+            self._persisted += 1
+
     # --------------------------------------------------------------------- run
 
     async def run(self, prompt: str) -> AsyncIterator[AgentEvent]:
@@ -166,7 +214,11 @@ class Harness:
         # permanently simply succeeds.
         self.repair_orphans()
 
+        if self.store is not None and self.session_id is None:
+            self.session_id = self.store.create_session(model=self.model)
+
         self.messages.append(UserMessage(content=prompt))
+        self._flush()
 
         async for event in run_agent_loop(
             provider=self.provider,
@@ -180,4 +232,7 @@ class Harness:
         ):
             for listener in self._listeners:
                 listener(event)
+            self._flush()
             yield event
+
+        self._flush()

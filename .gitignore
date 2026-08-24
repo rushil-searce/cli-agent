@@ -31,3 +31,7 @@ docs/session-logs/
 # Root-level exported transcript. Same reasoning as docs/session-logs/ above:
 # a personal working record that quotes file contents and command output.
 SESSION-TRANSCRIPT.md
+
+# Saved omega sessions. Local working state, and they quote file contents and
+# command output verbatim - same reasoning as docs/session-logs/.
+.omega/
