@@ -126,3 +126,16 @@ async def test_a_leaked_key_never_reaches_the_transcript() -> None:
     result = next(m for m in harness.messages if isinstance(m, ToolResultMessage))
     assert "sk-ant-api03-LEAKED" not in result.text
     assert "ANTHROPIC_API_KEY" in result.text
+
+
+def test_an_indented_secret_is_masked_and_keeps_its_indentation() -> None:
+    """A key inside a YAML block. `^NAME=` alone would miss it entirely.
+
+    The indentation has to survive: silently reformatting a file the model is
+    reading is its own kind of damage.
+    """
+    cleaned, found = redact("config:\n    api_key: supersecretvalue\n")
+
+    assert "supersecretvalue" not in cleaned
+    assert "    api_key: [redacted]" in cleaned
+    assert found

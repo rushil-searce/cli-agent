@@ -74,7 +74,13 @@ def _deletes_a_root(command: str) -> bool:
     The point of the target check is to let ordinary work through. Deleting a
     build directory recursively is a normal thing for a coding agent to want.
     """
-    home = str(Path.home())
+    try:
+        home = str(Path.home())
+    except RuntimeError:
+        # No home directory resolvable (a bare container, a stripped env). The
+        # other targets still apply; crashing inside a safety check would be a
+        # poor trade.
+        home = ""
     for match in re.finditer(r"\brm\b(?P<rest>[^;&|\n]*)", command):
         rest = match.group("rest")
         flags = "".join(re.findall(r"(?<!\S)-(\w+)", rest)).lower()
@@ -82,7 +88,8 @@ def _deletes_a_root(command: str) -> bool:
             continue
         for target in re.findall(r"(?<!\S)(?!-)(\S+)", rest):
             # Trailing slashes and globs do not change what is being deleted.
-            if target.rstrip("/*") in {"", "~", "$HOME", home}:
+            bare = target.rstrip("/*")
+            if bare in {"", "~", "$HOME"} or (home and bare == home):
                 return True
     return False
 

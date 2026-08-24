@@ -252,3 +252,23 @@ async def test_the_gate_stops_a_tool_through_the_real_loop() -> None:
     result = next(m for m in harness.messages if isinstance(m, ToolResultMessage))
     assert result.is_error is True
     assert "refused outright" in result.text
+
+
+async def test_an_unresolvable_home_directory_does_not_crash_the_check(
+    monkeypatch: Any,
+) -> None:
+    """A safety check that raises inside a tool call is worse than no check.
+
+    Path.home() raises RuntimeError when it cannot resolve a home directory -
+    a bare container, a stripped environment. The other targets still apply.
+    """
+    from pathlib import Path as _Path
+
+    def boom() -> _Path:
+        raise RuntimeError("no home")
+
+    monkeypatch.setattr(_Path, "home", staticmethod(boom))
+    policy = ApprovalPolicy(asker=_yes)
+
+    assert (await policy(_call("run_shell", command=CATASTROPHES[0]))).allowed is False
+    assert (await policy(_call("run_shell", command="rm -rf build"))).allowed is True

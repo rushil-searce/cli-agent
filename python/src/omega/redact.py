@@ -50,8 +50,11 @@ _BEARER = re.compile(r"\b(bearer)(\s+)[A-Za-z0-9._\-]{20,}", re.IGNORECASE)
 
 #: The catch-all: any assignment whose *name* says it holds a secret. Runs last,
 #: so anything recognisable has already been labelled properly.
+# The `indent` group exists so an indented line keeps its indentation. Without
+# it, redacting a key inside a YAML block would silently reformat the file the
+# model is looking at.
 _ENV_ASSIGNMENT = re.compile(
-    r"(?im)^(?P<name>[A-Za-z0-9_]*"
+    r"(?im)^(?P<indent>[ \t]*)(?P<name>[A-Za-z0-9_]*"
     r"(?:SECRET|TOKEN|PASSWORD|PASSWD|API_?KEY|APIKEY|CREDENTIAL|PRIVATE_KEY)"
     r"[A-Za-z0-9_]*)(?P<sep>\s*[=:]\s*)(?P<value>\S+)"
 )
@@ -77,7 +80,7 @@ def redact(text: str) -> tuple[str, list[str]]:
 
     if _ENV_ASSIGNMENT.search(cleaned):
         found.append("secret-looking environment value")
-        cleaned = _ENV_ASSIGNMENT.sub(r"\g<name>\g<sep>[redacted]", cleaned)
+        cleaned = _ENV_ASSIGNMENT.sub(r"\g<indent>\g<name>\g<sep>[redacted]", cleaned)
 
     return cleaned, found
 

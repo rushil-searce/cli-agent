@@ -2,10 +2,32 @@
 
 What this tier contains, and what it deliberately leaves to Tier 3.
 
-**Status: this is the contract, written before the code.** It states what must be true of Tier 2
-when it closes. Measured line counts and test totals are filled in at close-out; everything else
-is a commitment made in advance, so the tier can be checked against it rather than described
-after the fact.
+**Status: closed. Written before the code, kept honest afterwards.**
+
+This file was written as a *contract* at the start of Tier 2 — what would have to be true when
+the tier closed — so the work could be checked against a commitment rather than described after
+the fact. It has been updated in place as things landed, including the places where reality
+disagreed with the plan.
+
+**4,644 lines of source across 32 files · 4,224 lines of tests · 289 tests, all offline.**
+
+| | Tier 1 | Tier 2 | |
+|---|---|---|---|
+| Source | 1,577 | **4,644** | +3,067 |
+| Tests | 499 | **4,224** | +3,725 |
+| Test count | 45 | **289** | x6.4 |
+| `loop.py` | 151 | **190** | +39 |
+
+**The line estimate was wrong again, in the same direction.** This file predicted
+~3,400-3,800 source lines; the answer is 4,644, about 25% over. That is the third time an
+estimate here has run low: `04-folder-trees.md` predicted ~700 for Tier 1, which came in at
+1,577. The pattern is consistent enough to use. **Assume any estimate in these docs is roughly
+1.3-2x low**, and read Tier 3's "~4,000" in `docs/06-product-roadmap.md` as nearer 9,000-12,000.
+
+Where the extra went is not mysterious: tests grew faster than source, x8.5 against x2.9. Steps
+3, 4 and 8 are mostly *adversarial* tests — symlinked parents, `..` smuggled back through a
+rebuilt path, indented secrets, a failure arriving after output — and each is three lines of fix
+behind twenty lines of test proving the fix matters.
 
 Companion to `TIER-1.md`. Where that file's Part 2 said *"here is a gap and here is the seam it
 plugs into"*, this file's Part 2 does the same thing one tier further out.
@@ -32,7 +54,7 @@ interruptible.* Tier 2 addresses exactly those three words, and proves the layer
 | Providers | one, **unproven** | two, and the second one is the proof |
 | Auth | a static `api_key` string | a resolver callback, resolved per request |
 | Tokens | captured, unused | summed, priced, and shown |
-| Loop hooks | none | six of the nine declared, four wired |
+| Loop hooks | none | six of the nine declared, six wired |
 
 ### The nine failures, tier by tier
 
@@ -130,12 +152,22 @@ The headless driver is also the terminal-bench interface. Built once, used twice
 
 ### Verified at close-out
 
-- Tests, all offline. No network, no API key, no cost. *(count filled in at close-out)*
-- `mypy --strict` clean · `ruff` clean.
-- Ctrl-C mid-tool-call, then `--resume`: the next request **succeeds**.
-- Writing outside the working directory is refused; `rm -rf` is prompted.
-- `--provider openai` runs the same application code.
-- Exactly two files import a vendor SDK, both in `providers/`.
+- **289 tests in 1.7s, all offline.** No network, no API key, no cost.
+- `mypy --strict` clean across 32 source files · `ruff` clean.
+- **Ctrl-C mid-tool-call, then `--resume`: the next request succeeds.** Two tests cover the
+  interrupt landing *inside* a tool, which is the case that actually happens.
+- Writing outside the working directory is refused, and a refused write creates no directories
+  on its way to being refused.
+- A recursive delete aimed at a filesystem root is refused outright; the same operation aimed at
+  a build directory is prompted, not blocked.
+- **`--provider openai` runs the same application code** — asserted by a contract suite running
+  identical assertions against both adapters, and by one test driving the whole stack (headless
+  driver, harness, real tools, gate, redaction) on either provider.
+- **Exactly two files import a vendor SDK**, both in `providers/`. Searching `src/omega/` for
+  top-level `anthropic` or `openai` imports returns those two paths and nothing else.
+- The failure-#8 race is real, not decorative: take the per-path lock out and
+  `test_two_concurrent_edits_to_one_file_both_land` fails with *"one edit was silently
+  discarded"*.
 
 ---
 
@@ -188,6 +220,15 @@ lands without surgery.
   worker thread, and a signal cannot interrupt a blocked `input()`. The cancellation is recorded
   and takes effect as soon as the prompt is answered.
 - **Nothing is sandboxed.** Approvals and path confinement are policy, not containment.
+- **The retry wrapper is duplicated between the two adapters.** Same shape in `anthropic.py` and
+  `openai.py`, because it is provider-layer *machinery* rather than vendor translation.
+  `providers/streaming.py` is the obvious next refactor. Worth noting where the duplication sits:
+  inside `providers/`, which is exactly where the boundary said vendor concerns belong. The
+  abstraction leaked nothing upward; it repeated itself sideways.
+- **`stream_options` may not be accepted by every OpenAI-compatible endpoint.** It is sent because
+  without it a streamed response reports no usage at all and the cost counter silently reads zero.
+  An older Ollama or vLLM build may reject it; the fix is a newer server, not per-endpoint guessing.
+- **`omega.evals --real` only speaks to Anthropic.** The smoke eval has no `--provider` flag yet.
 - **`run_shell` is not path-confined.** `cd .. && cat ~/.ssh/id_rsa` walks straight out of the
   root, and parsing shell commands to prevent that is a game you lose. The shell is covered by
   the approval gate instead; real containment is Tier 3+ sandboxing, and `prepare_shell` in
