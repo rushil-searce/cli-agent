@@ -8,7 +8,7 @@ What this tier contains, and what it deliberately does not.
 
 ## Part 1 — What Tier 1 has
 
-**~1,050 lines of source, 45 tests, all offline.**
+**1,577 lines of source across 12 files, 45 tests, all offline.**
 
 ### Layer 1 · Provider
 
