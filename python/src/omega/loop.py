@@ -76,6 +76,15 @@ async def run_agent_loop(
     yield AgentStartEvent()
 
     for turn in range(max_turns):
+        if signal is not None and signal.is_cancelled():
+            # The cheapest cancellation there is: do not start another turn.
+            # A cancel that lands mid-stream comes back as an `aborted` terminal
+            # event and is handled below; this catches the one that landed
+            # between turns, which in practice means during a tool call.
+            # Checked before `turn_start` so no turn is announced that never runs.
+            yield AgentEndEvent(reason="aborted", error_message="Cancelled")
+            return
+
         yield TurnStartEvent(turn=turn)
         assistant: AssistantMessage | None = None
 

@@ -23,15 +23,27 @@ from __future__ import annotations
 from collections.abc import AsyncIterator, Callable, Sequence
 
 from omega.agent_events import AgentEvent
+from omega.cancellation import CancelSignal
 from omega.hooks import AgentHooks
 from omega.loop import DEFAULT_MAX_TURNS, run_agent_loop
 from omega.provider import ModelProvider
 from omega.tools import Tool
-from omega.types import AgentMessage, CancellationToken, UserMessage
+from omega.types import AgentMessage, AssistantMessage, ToolResultMessage, UserMessage
 
 #: A subscriber. Synchronous and returning nothing, deliberately: a listener that
 #: could block or fail would be able to stall the loop it is only watching.
 AgentListener = Callable[[AgentEvent], None]
+
+#: What a synthesized tool result says.
+#:
+#: Honest on purpose. We know that no result was recorded; we do *not* know
+#: whether the tool ran. A note claiming "nothing happened" would be a lie the
+#: model then reasons from — it might skip re-checking a file that was in fact
+#: half-written. "Unknown, verify" is both true and actionable.
+INTERRUPTED_NOTE = (
+    "Interrupted: this tool call was cancelled before a result was recorded. "
+    "Its effect is unknown - verify the current state before relying on it."
+)
 
 
 class Harness:
@@ -51,7 +63,7 @@ class Harness:
         tools: Sequence[Tool],
         hooks: AgentHooks | None = None,
         max_turns: int = DEFAULT_MAX_TURNS,
-        signal: CancellationToken | None = None,
+        signal: CancelSignal | None = None,
     ) -> None:
         self.provider = provider
         self.model = model
@@ -59,7 +71,11 @@ class Harness:
         self.tools = list(tools)
         self.hooks = hooks if hooks is not None else AgentHooks()
         self.max_turns = max_turns
-        self.signal = signal
+
+        #: Concrete, not the Protocol: the harness *owns* cancellation, so it
+        #: needs to be able to set and clear it, not merely ask. Everything
+        #: below only ever asks.
+        self.signal = signal if signal is not None else CancelSignal()
 
         #: The transcript. The harness owns it; the loop appends to it.
         self.messages: list[AgentMessage] = []
@@ -69,12 +85,87 @@ class Harness:
         """Subscribe to the agent events. Boundary D, and it only goes one way."""
         self._listeners.append(listener)
 
+    def cancel(self) -> None:
+        """Ask the current turn to stop.
+
+        Safe to call from a signal handler: it sets one boolean and returns. The
+        turn ends at the next check — in the provider stream, in a tool, or
+        before the next request — and ends *properly*, with a valid transcript.
+        """
+        self.signal.cancel()
+
+    # ------------------------------------------------------------------ repair
+
+    def repair_orphans(self) -> int:
+        """Answer every tool call that has no result. Returns how many it fixed.
+
+        **The fix for the nastiest of the nine beginner failures.** An assistant
+        message carrying a tool call with no matching result is rejected by
+        providers — not once, but on every future request. The conversation is
+        invalid forever. Interrupt at the wrong moment, persist the transcript,
+        and you have written a file that can never be resumed.
+
+        Results are inserted **beside the call that lacks one**, not appended to
+        the end. Order is a provider requirement: a result belongs to the
+        assistant turn that asked for it, so in a multi-turn transcript appending
+        would answer the wrong message.
+        """
+        repaired: list[AgentMessage] = []
+        fixed = 0
+        index = 0
+
+        while index < len(self.messages):
+            message = self.messages[index]
+            repaired.append(message)
+            index += 1
+
+            if not isinstance(message, AssistantMessage) or not message.tool_calls:
+                continue
+
+            # Consume the results that already follow this assistant message.
+            answered: set[str] = set()
+            while index < len(self.messages):
+                following = self.messages[index]
+                if not isinstance(following, ToolResultMessage):
+                    break
+                answered.add(following.tool_call_id)
+                repaired.append(following)
+                index += 1
+
+            for call in message.tool_calls:
+                if call.id in answered:
+                    continue
+                repaired.append(
+                    ToolResultMessage(
+                        tool_call_id=call.id,
+                        tool_name=call.name,
+                        content=INTERRUPTED_NOTE,  # type: ignore[arg-type]
+                        is_error=True,
+                    )
+                )
+                fixed += 1
+
+        # Rewrite in place: callers may be holding this list.
+        self.messages[:] = repaired
+        return fixed
+
+    # --------------------------------------------------------------------- run
+
     async def run(self, prompt: str) -> AsyncIterator[AgentEvent]:
         """One user prompt, run to completion.
 
         Events are both handed to every listener and yielded to the caller, so a
         UI can subscribe while a test simply iterates.
         """
+        # Clear a stale cancellation before anything else, or the previous
+        # Ctrl-C cancels this turn too.
+        self.signal.reset()
+
+        # Heal an interrupted transcript on the way in. The user should not have
+        # to know this failure mode exists — the request that would have failed
+        # permanently simply succeeds.
+        self.repair_orphans()
+
         self.messages.append(UserMessage(content=prompt))
 
         async for event in run_agent_loop(

@@ -55,7 +55,14 @@ async def test_honours_a_cancellation_signal() -> None:
             model="m", system="s", messages=[], tools=[], signal=Cancelled()
         )
     ]
-    assert events == []
+
+    # Tier 1 asserted `events == []` here. That was wrong, and Step 2 corrected
+    # it: events.py promises exactly one terminal event, and cancellation gets no
+    # exemption. A stream that simply stops leaves the loop with no assistant
+    # message, so it reports a provider bug where the user pressed Ctrl-C.
+    assert [e.type for e in events] == ["error"]
+    assert events[0].reason == "aborted"
+    assert events[0].error.stop_reason == "aborted"
 
 
 def test_scripted_streams_obey_the_event_contract() -> None:

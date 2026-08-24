@@ -19,6 +19,7 @@ from typing import Any, cast
 
 from omega.events import (
     AssistantDoneEvent,
+    AssistantErrorEvent,
     AssistantMessageEvent,
     AssistantStartEvent,
     TextDeltaEvent,
@@ -75,10 +76,22 @@ class FakeProvider:
         # console.log(f"FakeProvider: returning {len(stream)} events for call {len(self.calls)}")
         # console.log(f"stream: {stream}")
         async def iterator() -> AsyncIterator[AssistantMessageEvent]:
+            partial = AssistantMessage(model=model)
             for event in stream:
                 # is_cancelled is the method the CancellationToken protocol defines
                 if signal is not None and signal.is_cancelled():
+                    # The contract in events.py grants cancellation no exemption:
+                    # exactly one terminal event, even on the way out. Returning
+                    # early would leave the loop with no assistant message and
+                    # make it report a provider bug where the user pressed Ctrl-C.
+                    # The real adapter does this too - providers/anthropic.py:199.
+                    aborted = partial.model_copy(deep=True)
+                    aborted.stop_reason = "aborted"
+                    aborted.error_message = "Cancelled"
+                    yield AssistantErrorEvent(reason="aborted", error=aborted)
                     return
+                if not isinstance(event, AssistantDoneEvent | AssistantErrorEvent):
+                    partial = event.partial
                 yield event
 
         return iterator()
