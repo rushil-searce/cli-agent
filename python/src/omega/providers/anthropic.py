@@ -19,15 +19,17 @@ discards the tokens. The `error` event carries both.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import os
-from collections.abc import AsyncIterator, Iterable
+from collections.abc import AsyncIterator, Awaitable, Callable, Iterable
 from typing import Any, cast
 
 from anthropic import APIStatusError, AsyncAnthropic, AuthenticationError
 from anthropic.types import MessageParam, ToolParam
 
 from omega.events import (
+    TERMINAL_EVENT_TYPES,
     AssistantDoneEvent,
     AssistantErrorEvent,
     AssistantMessageEvent,
@@ -42,6 +44,13 @@ from omega.events import (
     ToolCallDeltaEvent,
     ToolCallEndEvent,
     ToolCallStartEvent,
+)
+from omega.providers.retry import (
+    DEFAULT_RETRY,
+    RetryPolicy,
+    delay_for,
+    is_retryable,
+    retry_after_of,
 )
 from omega.tools import Tool
 from omega.types import (
@@ -140,6 +149,12 @@ def normalise_stop_reason(raw: str | None, *, has_tool_calls: bool) -> DoneReaso
     return "stop"
 
 
+#: Supplies the API key, called immediately before each request. A callback
+#: rather than a string so a token can be refreshed without rebuilding the
+#: provider - Tau calls the same idea a RuntimeProviderAuthResolver.
+AuthResolver = Callable[[], Awaitable[str]]
+
+
 # ------------------------------------------------------------------- the adapter
 
 class AnthropicProvider:
@@ -149,10 +164,21 @@ class AnthropicProvider:
         self,
         *,
         api_key: str | None = None,
+        auth: AuthResolver | None = None,
         max_tokens: int = DEFAULT_MAX_TOKENS,
         client: AsyncAnthropic | None = None,
+        retry: RetryPolicy = DEFAULT_RETRY,
     ) -> None:
         self._max_tokens = max_tokens
+        self._retry = retry
+
+        #: Resolved before every request rather than read once at construction.
+        #: That difference is the whole point: a static string cannot refresh, so
+        #: a subscription token would expire mid-session and there would be no
+        #: place to notice. Full OAuth is a post-Tier-3 item; this is the seam it
+        #: needs, and it costs about ten lines to have now instead of later.
+        self._auth = auth
+
         self._client = client or AsyncAnthropic(
             api_key=api_key or os.environ.get("ANTHROPIC_API_KEY")
         )
@@ -170,7 +196,7 @@ class AnthropicProvider:
             model=model, system=system, messages=messages, tools=tools, signal=signal
         )
 
-    async def _stream(  # noqa: C901 - a translator; the branching is the job
+    async def _stream(
         self,
         *,
         model: str,
@@ -179,156 +205,208 @@ class AnthropicProvider:
         tools: list[Tool],
         signal: CancellationToken | None,
     ) -> AsyncIterator[AssistantMessageEvent]:
-        partial = AssistantMessage(model=model)
-        terminal = False
+        """Attempt the request, retrying while that is still safe, and guarantee
+        exactly one ending.
+
+        All of failure #5 lives here, and so does the single place that turns an
+        exception into an event. `_attempt` is free to raise; nothing above this
+        line ever sees an exception from a provider.
+        """
+        attempt = 0
+        while True:
+            partial = AssistantMessage(model=model)
+            emitted = 0
+            terminal = False
+
+            try:
+                async for event in self._attempt(
+                    model=model,
+                    system=system,
+                    messages=messages,
+                    tools=tools,
+                    signal=signal,
+                    partial=partial,
+                ):
+                    emitted += 1
+                    terminal = event.type in TERMINAL_EVENT_TYPES
+                    yield event
+            except Exception as exc:  # noqa: BLE001 - this boundary converts all of them
+                # Retry only while nothing has gone upward. Once tokens have been
+                # emitted, restarting the stream would produce them a second time,
+                # so a late failure is reported with whatever arrived before it.
+                may_retry = emitted == 0 and attempt + 1 < self._retry.attempts
+                if may_retry and is_retryable(exc):
+                    await asyncio.sleep(
+                        delay_for(attempt, self._retry, retry_after=retry_after_of(exc))
+                    )
+                    attempt += 1
+                    continue
+
+                detail = (
+                    _explain(exc)
+                    if isinstance(exc, APIStatusError)
+                    else f"{type(exc).__name__}: {exc}"
+                )
+                yield AssistantErrorEvent(
+                    reason="error", error=self._error_message(partial, detail)
+                )
+                return
+
+            if not terminal:
+                # Promise 2: a consumer always gets an ending, even if the vendor
+                # stream simply stopped.
+                yield AssistantErrorEvent(
+                    reason="error",
+                    error=self._error_message(
+                        partial, "Provider stream ended without a terminal event"
+                    ),
+                )
+            return
+
+    async def _attempt(  # noqa: C901 - a translator; the branching is the job
+        self,
+        *,
+        model: str,
+        system: str,
+        messages: list[AgentMessage],
+        tools: list[Tool],
+        signal: CancellationToken | None,
+        partial: AssistantMessage,
+    ) -> AsyncIterator[AssistantMessageEvent]:
+        """One try. Yields the twelve events; raises on failure.
+
+        `partial` is supplied by the caller and mutated here, so that when this
+        raises, the caller still holds everything that arrived first. That is how
+        "a stream that failed after 500 tokens keeps the 500 tokens" survives the
+        retry restructuring.
+        """
         raw_stop: str | None = None
         tool_json: dict[int, str] = {}
 
-        try:
-            async with self._client.messages.stream(
-                model=model,
-                max_tokens=self._max_tokens,
-                system=system,
-                # The translators return plain dicts on purpose: it keeps them
-                # testable without constructing SDK objects. Casting here is the
-                # honest place to reconcile that with the client's typed params.
-                messages=cast("Iterable[MessageParam]", to_anthropic_messages(messages)),
-                tools=cast("Iterable[ToolParam]", to_anthropic_tools(tools)),
-            ) as stream:
-                async for raw in stream:
-                    if signal is not None and signal.is_cancelled():
-                        terminal = True
-                        yield AssistantErrorEvent(
-                            reason="aborted",
-                            error=self._error_message(partial, "Cancelled", reason="aborted"),
+        # Resolved here, not in __init__, and re-resolved on every retry - which
+        # is exactly what makes an expiring token survivable.
+        if self._auth is not None:
+            self._client.api_key = await self._auth()
+
+        async with self._client.messages.stream(
+            model=model,
+            max_tokens=self._max_tokens,
+            system=system,
+            # The translators return plain dicts on purpose: it keeps them
+            # testable without constructing SDK objects. Casting here is the
+            # honest place to reconcile that with the client's typed params.
+            messages=cast("Iterable[MessageParam]", to_anthropic_messages(messages)),
+            tools=cast("Iterable[ToolParam]", to_anthropic_tools(tools)),
+        ) as stream:
+            async for raw in stream:
+                if signal is not None and signal.is_cancelled():
+                    yield AssistantErrorEvent(
+                        reason="aborted",
+                        error=self._error_message(partial, "Cancelled", reason="aborted"),
+                    )
+                    return
+
+                # Narrow on `raw.type` inline. Assigning the discriminator to a
+                # variable first defeats type narrowing — the checker can no
+                # longer tell which event shape it is holding.
+                if raw.type == "message_start":
+                    partial.usage = Usage(input=raw.message.usage.input_tokens, output=0)
+                    yield AssistantStartEvent(partial=partial.model_copy(deep=True))
+
+                elif raw.type == "content_block_start":
+                    index = raw.index
+                    block = raw.content_block
+                    if block.type == "text":
+                        partial.content.append(TextContent(text=""))
+                        yield TextStartEvent(
+                            content_index=index, partial=partial.model_copy(deep=True)
                         )
-                        return
-
-                    # Narrow on `raw.type` inline. Assigning the discriminator to a
-                    # variable first defeats type narrowing — the checker can no
-                    # longer tell which event shape it is holding.
-                    if raw.type == "message_start":
-                        partial.usage = Usage(input=raw.message.usage.input_tokens, output=0)
-                        yield AssistantStartEvent(partial=partial.model_copy(deep=True))
-
-                    elif raw.type == "content_block_start":
-                        index = raw.index
-                        block = raw.content_block
-                        if block.type == "text":
-                            partial.content.append(TextContent(text=""))
-                            yield TextStartEvent(
-                                content_index=index, partial=partial.model_copy(deep=True)
-                            )
-                        elif block.type == "thinking":
-                            partial.content.append(ThinkingContent(thinking=""))
-                            yield ThinkingStartEvent(
-                                content_index=index, partial=partial.model_copy(deep=True)
-                            )
-                        elif block.type == "tool_use":
-                            tool_json[index] = ""
-                            partial.content.append(
-                                ToolCall(id=block.id, name=block.name, arguments={})
-                            )
-                            yield ToolCallStartEvent(
-                                content_index=index, partial=partial.model_copy(deep=True)
-                            )
-
-                    elif raw.type == "content_block_delta":
-                        index = raw.index
-                        current = partial.content[index] if index < len(partial.content) else None
-
-                        if raw.delta.type == "text_delta" and isinstance(current, TextContent):
-                            current.text += raw.delta.text
-                            yield TextDeltaEvent(
-                                content_index=index,
-                                delta=raw.delta.text,
-                                partial=partial.model_copy(deep=True),
-                            )
-                        elif raw.delta.type == "thinking_delta" and isinstance(
-                            current, ThinkingContent
-                        ):
-                            current.thinking += raw.delta.thinking
-                            yield ThinkingDeltaEvent(
-                                content_index=index,
-                                delta=raw.delta.thinking,
-                                partial=partial.model_copy(deep=True),
-                            )
-                        elif raw.delta.type == "signature_delta" and isinstance(
-                            current, ThinkingContent
-                        ):
-                            current.signature = raw.delta.signature
-                        elif raw.delta.type == "input_json_delta":
-                            tool_json[index] = tool_json.get(index, "") + raw.delta.partial_json
-                            yield ToolCallDeltaEvent(
-                                content_index=index,
-                                delta=raw.delta.partial_json,
-                                partial=partial.model_copy(deep=True),
-                            )
-
-                    elif raw.type == "content_block_stop":
-                        index = raw.index
-                        current = partial.content[index] if index < len(partial.content) else None
-
-                        if isinstance(current, TextContent):
-                            yield TextEndEvent(
-                                content_index=index,
-                                content=current.text,
-                                partial=partial.model_copy(deep=True),
-                            )
-                        elif isinstance(current, ThinkingContent):
-                            yield ThinkingEndEvent(
-                                content_index=index,
-                                content=current.thinking,
-                                partial=partial.model_copy(deep=True),
-                            )
-                        elif isinstance(current, ToolCall):
-                            accumulated = tool_json.get(index, "").strip()
-                            try:
-                                current.arguments = json.loads(accumulated) if accumulated else {}
-                            except json.JSONDecodeError:
-                                # Malformed arguments are the model's problem to
-                                # fix; surface them rather than crashing here.
-                                current.arguments = {}
-                            yield ToolCallEndEvent(
-                                content_index=index,
-                                tool_call=current.model_copy(deep=True),
-                                partial=partial.model_copy(deep=True),
-                            )
-
-                    elif raw.type == "message_delta":
-                        raw_stop = raw.delta.stop_reason
-                        partial.usage = Usage(
-                            input=partial.usage.input, output=raw.usage.output_tokens
+                    elif block.type == "thinking":
+                        partial.content.append(ThinkingContent(thinking=""))
+                        yield ThinkingStartEvent(
+                            content_index=index, partial=partial.model_copy(deep=True)
+                        )
+                    elif block.type == "tool_use":
+                        tool_json[index] = ""
+                        partial.content.append(
+                            ToolCall(id=block.id, name=block.name, arguments={})
+                        )
+                        yield ToolCallStartEvent(
+                            content_index=index, partial=partial.model_copy(deep=True)
                         )
 
-            final = partial.model_copy(deep=True)
-            reason = normalise_stop_reason(raw_stop, has_tool_calls=bool(final.tool_calls))
-            final.stop_reason = reason
-            terminal = True
-            yield AssistantDoneEvent(reason=reason, message=final)
+                elif raw.type == "content_block_delta":
+                    index = raw.index
+                    current = partial.content[index] if index < len(partial.content) else None
 
-        except (AuthenticationError, APIStatusError) as exc:
-            terminal = True
-            yield AssistantErrorEvent(
-                reason="error", error=self._error_message(partial, _explain(exc))
-            )
-        except Exception as exc:  # noqa: BLE001 - the boundary converts everything to events
-            terminal = True
-            yield AssistantErrorEvent(
-                reason="error",
-                error=self._error_message(partial, f"{type(exc).__name__}: {exc}"),
-            )
+                    if raw.delta.type == "text_delta" and isinstance(current, TextContent):
+                        current.text += raw.delta.text
+                        yield TextDeltaEvent(
+                            content_index=index,
+                            delta=raw.delta.text,
+                            partial=partial.model_copy(deep=True),
+                        )
+                    elif raw.delta.type == "thinking_delta" and isinstance(
+                        current, ThinkingContent
+                    ):
+                        current.thinking += raw.delta.thinking
+                        yield ThinkingDeltaEvent(
+                            content_index=index,
+                            delta=raw.delta.thinking,
+                            partial=partial.model_copy(deep=True),
+                        )
+                    elif raw.delta.type == "signature_delta" and isinstance(
+                        current, ThinkingContent
+                    ):
+                        current.signature = raw.delta.signature
+                    elif raw.delta.type == "input_json_delta":
+                        tool_json[index] = tool_json.get(index, "") + raw.delta.partial_json
+                        yield ToolCallDeltaEvent(
+                            content_index=index,
+                            delta=raw.delta.partial_json,
+                            partial=partial.model_copy(deep=True),
+                        )
 
-        if not terminal:
-            # Promise 2: a consumer always gets an ending, even if the vendor
-            # stream simply stopped.
-            yield AssistantErrorEvent(
-                reason="error",
-                error=self._error_message(
-                    partial, "Provider stream ended without a terminal event"
-                ),
-            )
+                elif raw.type == "content_block_stop":
+                    index = raw.index
+                    current = partial.content[index] if index < len(partial.content) else None
 
+                    if isinstance(current, TextContent):
+                        yield TextEndEvent(
+                            content_index=index,
+                            content=current.text,
+                            partial=partial.model_copy(deep=True),
+                        )
+                    elif isinstance(current, ThinkingContent):
+                        yield ThinkingEndEvent(
+                            content_index=index,
+                            content=current.thinking,
+                            partial=partial.model_copy(deep=True),
+                        )
+                    elif isinstance(current, ToolCall):
+                        accumulated = tool_json.get(index, "").strip()
+                        try:
+                            current.arguments = json.loads(accumulated) if accumulated else {}
+                        except json.JSONDecodeError:
+                            # Malformed arguments are the model's problem to
+                            # fix; surface them rather than crashing here.
+                            current.arguments = {}
+                        yield ToolCallEndEvent(
+                            content_index=index,
+                            tool_call=current.model_copy(deep=True),
+                            partial=partial.model_copy(deep=True),
+                        )
+
+                elif raw.type == "message_delta":
+                    raw_stop = raw.delta.stop_reason
+                    partial.usage = Usage(
+                        input=partial.usage.input, output=raw.usage.output_tokens
+                    )
+
+        final = partial.model_copy(deep=True)
+        reason = normalise_stop_reason(raw_stop, has_tool_calls=bool(final.tool_calls))
+        final.stop_reason = reason
+        yield AssistantDoneEvent(reason=reason, message=final)
     @staticmethod
     def _error_message(
         partial: AssistantMessage, message: str, *, reason: str = "error"
@@ -359,5 +437,5 @@ def _explain(exc: APIStatusError) -> str:
             f"scripted responses instead. [{detail}]"
         )
     if status == 429:
-        return f"Rate limited by the provider. Tier 1 has no retry yet. [{detail}]"
+        return f"Rate limited by the provider, and retries were exhausted. [{detail}]"
     return f"Provider error (HTTP {status}). [{detail}]"
