@@ -70,7 +70,8 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         </div>
 
         <div className="relative z-10 mx-auto flex min-h-dvh w-full max-w-6xl flex-col">
-          <header className="flex items-center justify-between border-b border-rule px-6 py-5 md:px-12">
+          <header className="sticky top-0 z-30 flex items-center justify-between border-b border-rule bg-paper px-6 py-5 md:border-x md:px-12">
+            {/* Mark and name here; the hero carries the name alone. */}
             <Link href="/" className="group flex items-baseline gap-2.5 no-underline">
               <span className="font-serif text-2xl leading-none text-oxblood">&#937;</span>
               <span className="label text-ink transition-colors duration-200 group-hover:text-oxblood">

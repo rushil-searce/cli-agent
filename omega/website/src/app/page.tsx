@@ -22,22 +22,22 @@ const STEPS = [
   { label: "Report", detail: "worked or failed — both are just text" },
 ] as const;
 
-/** src/ — the three packages, and what each is forbidden to know. */
+/** The design split, named by the things that actually implement it. */
 const PARTS = [
   {
     role: "the brain",
-    pkg: "omega_agent",
-    line: "The loop and the harness. Has never heard of a file or a terminal.",
+    symbol: "Harness",
+    line: "Owns the transcript, the queues and cancellation. Has never heard of a file or a terminal.",
   },
   {
     role: "the environment",
-    pkg: "omega_coding",
-    line: "Tools, approvals, path confinement, sessions. Everything that touches your machine.",
+    symbol: "build_tools()",
+    line: "Tools, approvals, path confinement, secret redaction. Everything that touches your machine.",
   },
   {
-    role: "the voice",
-    pkg: "omega_ai",
-    line: "Talks to models. Two adapters, one interface, and no opinions above it.",
+    role: "the face",
+    symbol: "cli · headless",
+    line: "Two frontends already, because neither can call the loop — both only subscribe to events.",
   },
 ] as const;
 
@@ -91,12 +91,7 @@ export default function Home() {
         <Reveal className="relative">
           <div className="grid items-center gap-x-12 gap-y-12 md:grid-cols-12">
             <div className="md:col-span-6">
-              <div className="mb-7 flex items-baseline gap-3">
-                <span className="font-serif text-4xl leading-none text-oxblood">&#937;</span>
-                <span className="label text-ink">omega</span>
-              </div>
-
-              <h1 className="m-0 max-w-[16ch] text-4xl font-normal leading-[1.08] md:text-[3.25rem]">
+              <h1 className="m-0 max-w-[16ch] text-4xl leading-[1.08] md:text-[3.25rem]">
                 {site.tagline}
               </h1>
 
@@ -180,26 +175,36 @@ export default function Home() {
 
           <div className="mt-10 grid gap-x-10 gap-y-8 md:grid-cols-3">
             {PARTS.map((p) => (
-              <div key={p.pkg} className="border-t-2 border-oxblood pt-5">
+              <div key={p.symbol} className="border-t-2 border-oxblood pt-5">
                 <h3 className="m-0 font-serif text-2xl">{p.role}</h3>
-                <p className="m-0 mt-1 font-mono text-xs text-ink-muted">{p.pkg}</p>
+                <p className="m-0 mt-1 font-mono text-xs text-ink-muted">{p.symbol}</p>
                 <p className="m-0 mt-4 text-ink-muted">{p.line}</p>
               </div>
             ))}
           </div>
 
-          <div className="mt-10 overflow-x-auto border border-rule bg-term px-5 py-5">
-            <pre className="m-0 font-mono text-[13px] leading-[1.9] text-ink">
+          <div className="mt-10 overflow-x-auto border border-rule bg-term px-6 py-6">
+            <pre className="m-0 font-mono text-[13px] leading-[1.95] text-ink">
               <code>
-                {`src/
-├── omega_ai/       `}
-                <span className="text-ink-muted">the voice — providers, retry, streaming</span>
-                {`
-├── omega_agent/    `}
-                <span className="text-ink-muted">the brain — the loop, the harness, the hooks</span>
-                {`
-└── omega_coding/   `}
-                <span className="text-ink-muted">the environment and the face</span>
+                <span className="text-ink-muted">omega — design split</span>
+                {"\n\n"}
+                <span className="text-oxblood">Harness</span>
+                {`         reusable agent brain
+`}
+                <span className="text-oxblood">build_tools()</span>
+                {`   coding-agent environment
+`}
+                <span className="text-oxblood">cli · headless</span>
+                {`  two possible frontends
+
+`}
+                <span className="text-ink-muted">dependency direction</span>
+                {"\n"}
+                {`omega_coding `}
+                <span className="text-forest">&#8594;</span>
+                {` omega_agent `}
+                <span className="text-forest">&#8594;</span>
+                {` omega_ai`}
               </code>
             </pre>
           </div>
