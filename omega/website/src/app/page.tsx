@@ -8,81 +8,56 @@ function Heading({ children }: { children: React.ReactNode }) {
 }
 
 /**
- * A single watermark, anchored — not scattered.
+ * The loop, shown as the loop.
  *
- * It bleeds off the right edge of one section and sits behind an opaque card,
- * so it never lands on text. One deliberate placement reads as a mark; several
- * random ones read as clutter.
- */
-function Watermark() {
-  return (
-    <span
-      aria-hidden="true"
-      className="pointer-events-none absolute -right-10 top-1/2 hidden -translate-y-1/2 select-none font-serif text-[22rem] leading-none text-oxblood/[0.045] lg:block dark:text-oxblood/[0.07]"
-    >
-      &#937;
-    </span>
-  );
-}
-
-/**
- * The loop, drawn as a rail rather than a circle.
+ * Two earlier attempts drew it — a circle with mis-plotted stations, then a
+ * railed card whose border and arrow read as vague. Both were illustrations of
+ * something that is already legible in eight lines. The subject of this section
+ * is that the mechanism is small; the most direct way to show that is the
+ * mechanism.
  *
- * An earlier attempt plotted stations at the wrong radius on an SVG circle, so
- * the dots floated off the ring. A rail cannot fail that way: the path is a
- * border and the stations are list items sitting on it.
+ * Condensed from omega_agent/loop.py — real lines, inner detail elided.
  */
-const STEPS = [
-  { n: 1, label: "ask the model", detail: "transcript, tools, system prompt" },
-  { n: 2, label: "it requests a tool", detail: "or it doesn't — that is the exit" },
-  { n: 3, label: "run it", detail: "approvals, path checks, output budget" },
-  { n: 4, label: "report back", detail: "success or failure, both as data" },
-] as const;
+const LOOP_SOURCE: { text: string; tone?: "kw" | "dim" | "stop" }[][] = [
+  [{ text: "for", tone: "kw" }, { text: " turn " }, { text: "in", tone: "kw" }, { text: " range(max_turns):" }],
+  [{ text: "    assistant = " }, { text: "await", tone: "kw" }, { text: " stream(provider, messages, tools)" }],
+  [],
+  [{ text: "    calls = assistant.tool_calls" }],
+  [{ text: "    # content, not stop_reason", tone: "dim" }],
+  [],
+  [{ text: "    " }, { text: "if not", tone: "kw" }, { text: " calls:" }],
+  [{ text: "        " }, { text: "return", tone: "stop" }, { text: "  # the run is over", tone: "dim" }],
+  [],
+  [{ text: "    " }, { text: "for", tone: "kw" }, { text: " call " }, { text: "in", tone: "kw" }, { text: " calls:" }],
+  [{ text: "        messages.append(" }, { text: "await", tone: "kw" }, { text: " run_tool(call))" }],
+];
 
-function LoopFigure() {
+const TONE = {
+  kw: "text-oxblood",
+  dim: "text-ink-muted",
+  stop: "text-forest",
+} as const;
+
+function LoopSource() {
   return (
-    <figure className="relative m-0 w-full max-w-md border border-rule bg-paper-raised">
-      <figcaption className="flex items-baseline justify-between border-b border-rule px-6 py-3.5">
-        <span className="label text-ink">one turn</span>
-        <span className="label text-ink-muted">loop.py</span>
+    <figure className="m-0 w-full border border-rule bg-term">
+      <figcaption className="flex items-baseline justify-between border-b border-rule px-5 py-3">
+        <span className="label text-ink-muted">omega_agent/loop.py</span>
+        <span className="label text-ink-muted">190 lines</span>
       </figcaption>
-
-      <div className="px-6 py-7">
-        <div className="relative rounded-l-2xl border-y border-l border-rule-strong py-5 pl-6 pr-1">
-          <span
-            aria-hidden="true"
-            className="absolute -left-[6px] top-1/2 -translate-y-1/2 bg-paper-raised py-2 text-[10px] leading-none text-oxblood"
-          >
-            &#9650;
-          </span>
-
-          <ol className="m-0 grid list-none gap-5 p-0">
-            {STEPS.map((s) => (
-              <li key={s.n} className="grid grid-cols-[auto_1fr] items-baseline gap-3.5">
-                <span className="tnum label text-oxblood">{s.n}</span>
-                <span>
-                  <span className="block leading-snug">{s.label}</span>
-                  <span className="block text-sm text-ink-muted">{s.detail}</span>
+      <pre className="m-0 overflow-x-auto px-5 py-5 font-mono text-[13px] leading-[1.85]">
+        <code>
+          {LOOP_SOURCE.map((line, i) => (
+            <span key={i} className="block min-h-[1.85em]">
+              {line.map((part, j) => (
+                <span key={j} className={part.tone ? TONE[part.tone] : undefined}>
+                  {part.text}
                 </span>
-              </li>
-            ))}
-          </ol>
-        </div>
-
-        <div className="mt-6 flex items-baseline gap-3.5 pl-6">
-          <span className="label text-forest">stop</span>
-          <span className="text-sm text-ink-muted">no tool requested — the run ends</span>
-        </div>
-      </div>
-
-      {/* the stop condition, as it is actually written */}
-      <div className="overflow-x-auto border-t border-rule bg-term px-6 py-3.5">
-        <code className="whitespace-pre font-mono text-[12.5px] text-ink-muted">
-          <span className="text-oxblood">if not</span> assistant.tool_calls:{"\n"}
-          {"    "}
-          <span className="text-forest">return</span>
+              ))}
+            </span>
+          ))}
         </code>
-      </div>
+      </pre>
     </figure>
   );
 }
@@ -172,45 +147,32 @@ export default function Home() {
       </section>
 
       {/* ── the loop ─────────────────────────────────────────── */}
-      <section className={`relative overflow-hidden border-b border-rule ${PAD} py-16`}>
-        <Watermark />
-
-        <Reveal className="relative">
+      <section className={`border-b border-rule ${PAD} py-16`}>
+        <Reveal>
           <Heading>the loop</Heading>
-          <div className="grid gap-x-12 gap-y-12 md:grid-cols-12">
-            <div className="md:col-span-6">
-              <h2 className="m-0 max-w-[18ch] text-3xl">
+          <div className="grid gap-x-12 gap-y-10 md:grid-cols-12">
+            <div className="md:col-span-5">
+              <h2 className="m-0 max-w-[16ch] text-3xl">
                 Ask, run what it asks for, report back, repeat.
               </h2>
-              <p className="mt-5 max-w-[48ch] text-lg text-ink-muted">
-                That is the whole mechanism. Everything hard — budgets, approvals, retries,
-                persistence — lives <em>around</em> it, reached through callbacks. The loop asks; it
-                never decides.
+              <p className="mt-5 max-w-[38ch] text-ink-muted">
+                The loop asks. It never decides — every policy is somebody else&rsquo;s callback.
               </p>
 
-              {/* stacked, not a two-column grid: three items never split evenly */}
-              <ol className="m-0 mt-10 grid list-none gap-0 p-0">
-                {claims.map((c, i) => (
+              <ul className="m-0 mt-9 grid list-none gap-0 p-0">
+                {claims.map((c) => (
                   <li
                     key={c.title}
-                    className="grid grid-cols-[auto_1fr] items-baseline gap-5 border-t border-rule py-5 last:border-b"
+                    className="border-t border-rule py-3.5 text-[15px] leading-snug last:border-b"
                   >
-                    <span className="tnum label text-oxblood">
-                      {String(i + 1).padStart(2, "0")}
-                    </span>
-                    <span>
-                      <span className="block text-lg leading-snug">{c.title}</span>
-                      <span className="mt-1 block max-w-[52ch] text-sm text-ink-muted">
-                        {c.body}
-                      </span>
-                    </span>
+                    {c.title}
                   </li>
                 ))}
-              </ol>
+              </ul>
             </div>
 
-            <div className="flex md:col-span-6 md:justify-end">
-              <LoopFigure />
+            <div className="md:col-span-7">
+              <LoopSource />
             </div>
           </div>
         </Reveal>
