@@ -25,7 +25,7 @@ from typing import Any
 
 from pydantic import Field, model_validator
 
-from omega.types import CancellationToken, TextContent, WireModel
+from omega_agent.types import CancellationToken, TextContent, WireModel
 
 
 # this class uses pydantic

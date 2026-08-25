@@ -28,10 +28,10 @@ import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
-from omega.builtin_tools import build_tools
-from omega.headless import HeadlessResult, run_headless
-from omega.provider import ModelProvider
-from omega.providers.fake import FakeProvider, text_turn, tool_turn
+from omega_agent.builtin_tools import build_tools
+from omega_agent.headless import HeadlessResult, run_headless
+from omega_agent.provider import ModelProvider
+from omega_agent.providers.fake import FakeProvider, text_turn, tool_turn
 
 TASK = "Create a file called hello.txt containing exactly: hi"
 
@@ -113,7 +113,7 @@ def main(argv: list[str] | None = None) -> int:
     real = "--real" in args
 
     if real:
-        from omega.providers.anthropic import DEFAULT_MODEL, AnthropicProvider
+        from omega_agent.providers.anthropic import DEFAULT_MODEL, AnthropicProvider
 
         provider: ModelProvider = AnthropicProvider()
         model = DEFAULT_MODEL

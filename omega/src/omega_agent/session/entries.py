@@ -19,7 +19,7 @@ from typing import Annotated, Literal
 
 from pydantic import Field
 
-from omega.types import AgentMessage, WireModel
+from omega_agent.types import AgentMessage, WireModel
 
 #: Bumped whenever a record shape changes. `jsonl.py` migrates anything older.
 SCHEMA_VERSION = 1

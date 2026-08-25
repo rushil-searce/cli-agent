@@ -37,8 +37,8 @@ from __future__ import annotations
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 
-from omega.tools import ToolResult
-from omega.types import AgentMessage, ToolCall
+from omega_agent.tools import ToolResult
+from omega_agent.types import AgentMessage, ToolCall
 
 
 @dataclass(frozen=True, slots=True)

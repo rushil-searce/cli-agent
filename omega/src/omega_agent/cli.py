@@ -22,23 +22,23 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-from omega.agent_events import AgentEvent
-from omega.approval import Answer, ApprovalPolicy, ApprovalRequest
-from omega.builtin_tools import build_tools
-from omega.context import measure
-from omega.cost import CostTracker, price_from_env
-from omega.harness import Harness
-from omega.history import drop_empty_failed_turns
-from omega.hooks import AgentHooks
-from omega.loop import DEFAULT_MAX_TURNS
-from omega.provider import ModelProvider
-from omega.providers.anthropic import DEFAULT_MODEL as ANTHROPIC_MODEL
-from omega.providers.anthropic import AnthropicProvider
-from omega.providers.fake import FakeProvider, text_turn, tool_turn
-from omega.providers.openai import DEFAULT_MODEL as OPENAI_MODEL
-from omega.providers.openai import OpenAIProvider
-from omega.redact import redacting_hook
-from omega.session import JsonlSessionStore
+from omega_agent.agent_events import AgentEvent
+from omega_agent.approval import Answer, ApprovalPolicy, ApprovalRequest
+from omega_agent.builtin_tools import build_tools
+from omega_agent.context import measure
+from omega_agent.cost import CostTracker, price_from_env
+from omega_agent.harness import Harness
+from omega_agent.history import drop_empty_failed_turns
+from omega_agent.hooks import AgentHooks
+from omega_agent.loop import DEFAULT_MAX_TURNS
+from omega_agent.provider import ModelProvider
+from omega_agent.providers.anthropic import DEFAULT_MODEL as ANTHROPIC_MODEL
+from omega_agent.providers.anthropic import AnthropicProvider
+from omega_agent.providers.fake import FakeProvider, text_turn, tool_turn
+from omega_agent.providers.openai import DEFAULT_MODEL as OPENAI_MODEL
+from omega_agent.providers.openai import OpenAIProvider
+from omega_agent.redact import redacting_hook
+from omega_agent.session import JsonlSessionStore
 
 SYSTEM_PROMPT = """You are omega, a terminal coding agent. Use the tools to inspect and edit files.
 

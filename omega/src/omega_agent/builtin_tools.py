@@ -32,11 +32,11 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-from omega.file_lock import FILE_LOCKS, FileLocks
-from omega.paths import resolve_within_root
-from omega.tools import Tool, ToolError, ToolResult
-from omega.truncate import MAX_BYTES, MAX_LINES, truncate_output
-from omega.types import CancellationToken
+from omega_agent.file_lock import FILE_LOCKS, FileLocks
+from omega_agent.paths import resolve_within_root
+from omega_agent.tools import Tool, ToolError, ToolResult
+from omega_agent.truncate import MAX_BYTES, MAX_LINES, truncate_output
+from omega_agent.types import CancellationToken
 
 #: How long a command may run before it is killed. A hung command used to hang
 #: the agent forever, which is the kind of bug that makes a tool untrustworthy.

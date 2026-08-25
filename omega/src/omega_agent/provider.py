@@ -21,9 +21,9 @@ from __future__ import annotations
 from collections.abc import AsyncIterator
 from typing import Protocol
 
-from omega.events import AssistantMessageEvent
-from omega.tools import Tool
-from omega.types import AgentMessage, CancellationToken
+from omega_agent.events import AssistantMessageEvent
+from omega_agent.tools import Tool
+from omega_agent.types import AgentMessage, CancellationToken
 
 __all__ = ["CancellationToken", "ModelProvider"]
 

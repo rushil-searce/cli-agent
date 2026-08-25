@@ -27,7 +27,7 @@ from typing import Any
 
 from pydantic import TypeAdapter, ValidationError
 
-from omega.session.entries import SCHEMA_VERSION, SessionRecord
+from omega_agent.session.entries import SCHEMA_VERSION, SessionRecord
 
 _ADAPTER: TypeAdapter[SessionRecord] = TypeAdapter(SessionRecord)
 

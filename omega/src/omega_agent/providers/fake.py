@@ -17,7 +17,7 @@ from collections.abc import AsyncIterator, Iterable, Sequence
 from dataclasses import dataclass
 from typing import Any, cast
 
-from omega.events import (
+from omega_agent.events import (
     AssistantDoneEvent,
     AssistantErrorEvent,
     AssistantMessageEvent,
@@ -28,8 +28,8 @@ from omega.events import (
     ToolCallEndEvent,
     ToolCallStartEvent,
 )
-from omega.tools import Tool
-from omega.types import (
+from omega_agent.tools import Tool
+from omega_agent.types import (
     AgentMessage,
     AssistantMessage,
     CancellationToken,

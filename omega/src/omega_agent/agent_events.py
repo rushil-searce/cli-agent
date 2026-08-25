@@ -31,8 +31,8 @@ from typing import Annotated, Any, Literal
 
 from pydantic import Field
 
-from omega.events import AssistantMessageEvent
-from omega.types import AssistantMessage, ToolCall, ToolResultMessage, WireModel
+from omega_agent.events import AssistantMessageEvent
+from omega_agent.types import AssistantMessage, ToolCall, ToolResultMessage, WireModel
 
 #: The four nesting levels, outermost first. Exposed so a renderer can derive
 #: indentation from the vocabulary instead of hardcoding it.

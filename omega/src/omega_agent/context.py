@@ -22,8 +22,8 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 
-from omega.tools import Tool
-from omega.types import AgentMessage, AssistantMessage, ToolResultMessage, UserMessage
+from omega_agent.tools import Tool
+from omega_agent.types import AgentMessage, AssistantMessage, ToolResultMessage, UserMessage
 
 #: The classic rule of thumb for English and code. Wrong in both directions for
 #: any given string, close enough over a whole conversation.

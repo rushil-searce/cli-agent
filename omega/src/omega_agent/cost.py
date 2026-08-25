@@ -21,8 +21,8 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 
-from omega.agent_events import AgentEvent
-from omega.types import AssistantMessage
+from omega_agent.agent_events import AgentEvent
+from omega_agent.types import AssistantMessage
 
 
 @dataclass(frozen=True, slots=True)

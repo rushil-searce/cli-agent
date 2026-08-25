@@ -25,8 +25,8 @@ from __future__ import annotations
 
 import re
 
-from omega.tools import ToolResult
-from omega.types import ToolCall
+from omega_agent.tools import ToolResult
+from omega_agent.types import ToolCall
 
 #: Specific, high-confidence shapes. Anthropic is listed before OpenAI because
 #: the OpenAI pattern would otherwise swallow `sk-ant-...` and mislabel it.

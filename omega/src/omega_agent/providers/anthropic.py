@@ -28,7 +28,7 @@ from typing import Any, cast
 from anthropic import APIStatusError, AsyncAnthropic, AuthenticationError
 from anthropic.types import MessageParam, ToolParam
 
-from omega.events import (
+from omega_agent.events import (
     TERMINAL_EVENT_TYPES,
     AssistantDoneEvent,
     AssistantErrorEvent,
@@ -45,15 +45,15 @@ from omega.events import (
     ToolCallEndEvent,
     ToolCallStartEvent,
 )
-from omega.providers.retry import (
+from omega_agent.providers.retry import (
     DEFAULT_RETRY,
     RetryPolicy,
     delay_for,
     is_retryable,
     retry_after_of,
 )
-from omega.tools import Tool
-from omega.types import (
+from omega_agent.tools import Tool
+from omega_agent.types import (
     AgentMessage,
     AssistantMessage,
     CancellationToken,

@@ -36,8 +36,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal
 
-from omega.hooks import ALLOW, ToolCallDecision
-from omega.types import ToolCall
+from omega_agent.hooks import ALLOW, ToolCallDecision
+from omega_agent.types import ToolCall
 
 #: What a human can answer. `always` is scoped to one tool, never to everything:
 #: "yes, you may run commands" must not also mean "yes, you may rewrite files".

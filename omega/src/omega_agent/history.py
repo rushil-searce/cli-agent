@@ -19,7 +19,7 @@ the larger one an addition later rather than a redesign.
 
 from __future__ import annotations
 
-from omega.types import AgentMessage, AssistantMessage
+from omega_agent.types import AgentMessage, AssistantMessage
 
 
 def _is_empty_failure(message: AgentMessage) -> bool:

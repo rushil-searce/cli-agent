@@ -29,7 +29,7 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator
 
-from omega.agent_events import (
+from omega_agent.agent_events import (
     AgentEndEvent,
     AgentEndReason,
     AgentEvent,
@@ -42,11 +42,11 @@ from omega.agent_events import (
     TurnEndEvent,
     TurnStartEvent,
 )
-from omega.hooks import AgentHooks, MessageSource
-from omega.provider import ModelProvider
-from omega.tool_runner import execute_tool_call
-from omega.tools import Tool
-from omega.types import AgentMessage, AssistantMessage, CancellationToken
+from omega_agent.hooks import AgentHooks, MessageSource
+from omega_agent.provider import ModelProvider
+from omega_agent.tool_runner import execute_tool_call
+from omega_agent.tools import Tool
+from omega_agent.types import AgentMessage, AssistantMessage, CancellationToken
 
 DEFAULT_MAX_TURNS = 25
 

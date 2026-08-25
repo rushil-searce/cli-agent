@@ -28,7 +28,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from omega.tools import ToolError
+from omega_agent.tools import ToolError
 
 
 class PathOutsideRoot(ToolError):

@@ -35,7 +35,7 @@ from typing import Annotated, Literal
 
 from pydantic import Field
 
-from omega.types import AssistantMessage, ToolCall, WireModel
+from omega_agent.types import AssistantMessage, ToolCall, WireModel
 
 # Every streaming event carries `partial`: the whole message as it exists so far.
 # It costs a copy per event and buys stateless consumers — a renderer can ignore

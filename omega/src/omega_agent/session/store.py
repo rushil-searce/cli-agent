@@ -16,9 +16,9 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Protocol
 
-from omega.session.entries import SessionEntry, SessionHeader
-from omega.session.jsonl import append_record, read_records
-from omega.types import AgentMessage
+from omega_agent.session.entries import SessionEntry, SessionHeader
+from omega_agent.session.jsonl import append_record, read_records
+from omega_agent.types import AgentMessage
 
 
 class SessionStore(Protocol):

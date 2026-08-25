@@ -19,11 +19,11 @@ wheels/
 research/
 
 # Generated PDF/HTML handbook output
-docs/dist/
+dev-notes/dist/
 
 # Exported chat transcripts. Personal working records, not project docs — and
 # they can quote file contents and command output verbatim, so they stay local.
-docs/session-logs/
+dev-notes/session-logs/
 
 # Git worktrees created for isolated work. Local scratch, never committed.
 .claude/worktrees/
@@ -33,5 +33,5 @@ docs/session-logs/
 SESSION-TRANSCRIPT.md
 
 # Saved omega sessions. Local working state, and they quote file contents and
-# command output verbatim - same reasoning as docs/session-logs/.
+# command output verbatim - same reasoning as dev-notes/session-logs/.
 .omega/

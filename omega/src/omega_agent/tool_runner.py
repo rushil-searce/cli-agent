@@ -20,9 +20,9 @@ from __future__ import annotations
 
 import asyncio
 
-from omega.hooks import AgentHooks
-from omega.tools import Tool
-from omega.types import CancellationToken, ToolCall, ToolResultMessage
+from omega_agent.hooks import AgentHooks
+from omega_agent.tools import Tool
+from omega_agent.types import CancellationToken, ToolCall, ToolResultMessage
 
 
 async def execute_tool_call(
