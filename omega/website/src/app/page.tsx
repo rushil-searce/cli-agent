@@ -1,5 +1,5 @@
 import { CopyCommand, Reveal } from "@/components/site/interactive";
-import { claims, commands, layers, providers, site, timeline, upcoming } from "@/lib/content";
+import { claims, commands, layers, providers, site, timeline } from "@/lib/content";
 
 const PAD = "px-6 md:px-12";
 
@@ -8,65 +8,48 @@ function Heading({ children }: { children: React.ReactNode }) {
 }
 
 /**
- * The loop, drawn. Four stations and the exit — this is the mechanism the whole
- * project is about, so it earns a figure rather than a decorative glyph.
+ * The loop, drawn as a rail rather than a circle.
  *
- * It occupies its own grid cell. Nothing is layered behind anything else, which
- * is the only reliable way to guarantee a diagram never collides with text.
+ * The first attempt was an SVG circle with stations plotted at the wrong
+ * radius, so the dots floated off the ring. A rail cannot fail that way: the
+ * path is a border, the stations are list items sitting on it, and the geometry
+ * follows the content instead of being hand-computed alongside it.
  */
+const STEPS = [
+  { n: 1, label: "ask the model", detail: "transcript, tools, system prompt" },
+  { n: 2, label: "it requests a tool", detail: "or it doesn't — that is the exit" },
+  { n: 3, label: "run it", detail: "approvals, path checks, output budget" },
+  { n: 4, label: "report back", detail: "success or failure, both as data" },
+] as const;
+
 function LoopFigure() {
-  const stations = [
-    { x: 100, y: 26, label: "ask" },
-    { x: 174, y: 100, label: "requests a tool" },
-    { x: 100, y: 174, label: "run it" },
-    { x: 26, y: 100, label: "report back" },
-  ];
-
   return (
-    <figure className="m-0">
-      <svg
-        viewBox="0 0 200 200"
-        role="img"
-        aria-label="The agent loop: ask, the model requests a tool, run it, report back, repeat until no tool is requested."
-        className="h-auto w-full max-w-[22rem] text-rule-strong"
-        fill="none"
-        stroke="currentColor"
-      >
-        {/* the cycle */}
-        <circle cx="100" cy="100" r="58" strokeWidth="1" strokeDasharray="3 4" />
-
-        {/* direction arrows on the cycle */}
-        {[
-          "M 148 72 L 152 82 L 142 84",
-          "M 128 152 L 118 156 L 116 146",
-          "M 52 128 L 48 118 L 58 116",
-          "M 72 48 L 82 44 L 84 54",
-        ].map((d) => (
-          <path key={d} d={d} strokeWidth="1.2" className="text-oxblood" />
-        ))}
-
-        {stations.map((s) => (
-          <g key={s.label}>
-            <circle cx={s.x} cy={s.y} r="4.5" className="fill-paper text-oxblood" strokeWidth="1.4" />
-          </g>
-        ))}
-
-        {/* the exit: no tool requested, the run ends */}
-        <line x1="100" y1="158" x2="100" y2="192" strokeWidth="1" className="text-forest" />
-        <path d="M 95 185 L 100 194 L 105 185" strokeWidth="1.2" className="text-forest" />
-      </svg>
-
-      <figcaption className="mt-5 grid gap-1.5">
-        {["ask", "it requests a tool", "run it", "report back"].map((step, i) => (
-          <span key={step} className="flex items-baseline gap-3 text-sm">
-            <span className="tnum label text-oxblood">{i + 1}</span>
-            <span className="text-ink-muted">{step}</span>
-          </span>
-        ))}
-        <span className="mt-2 flex items-baseline gap-3 border-t border-rule pt-2.5 text-sm">
-          <span className="label text-forest">stop</span>
-          <span className="text-ink-muted">no tool requested</span>
+    <figure className="m-0 w-full max-w-sm">
+      <div className="relative rounded-l-2xl border-y border-l border-rule-strong py-6 pl-6 pr-1">
+        {/* the return arrow, sitting on the rail it points along */}
+        <span
+          aria-hidden="true"
+          className="absolute -left-[6px] top-1/2 -translate-y-1/2 bg-paper py-2 text-[10px] leading-none text-oxblood"
+        >
+          &#9650;
         </span>
+
+        <ol className="m-0 grid list-none gap-5 p-0">
+          {STEPS.map((s) => (
+            <li key={s.n} className="grid grid-cols-[auto_1fr] items-baseline gap-3.5">
+              <span className="tnum label text-oxblood">{s.n}</span>
+              <span>
+                <span className="block leading-snug">{s.label}</span>
+                <span className="block text-sm text-ink-muted">{s.detail}</span>
+              </span>
+            </li>
+          ))}
+        </ol>
+      </div>
+
+      <figcaption className="mt-4 flex items-baseline gap-3.5 pl-6">
+        <span className="label text-forest">stop</span>
+        <span className="text-sm text-ink-muted">no tool requested — the run ends</span>
       </figcaption>
     </figure>
   );
@@ -76,8 +59,20 @@ export default function Home() {
   return (
     <>
       {/* ── Hero ─────────────────────────────────────────────── */}
-      <section className={`border-b border-rule ${PAD} py-16 md:py-20`}>
-        <Reveal>
+      <section className={`relative border-b border-rule ${PAD} py-16 md:py-20`}>
+        {/* Graph-paper grid, behind everything and fading out before the fold. */}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 [mask-image:linear-gradient(to_bottom,black,transparent_88%)]"
+          style={{
+            backgroundImage:
+              "linear-gradient(to right, var(--rule) 1px, transparent 1px), linear-gradient(to bottom, var(--rule) 1px, transparent 1px)",
+            backgroundSize: "64px 64px",
+            opacity: 0.55,
+          }}
+        />
+
+        <Reveal className="relative">
           <div className="grid items-center gap-x-12 gap-y-12 md:grid-cols-12">
             <div className="md:col-span-6">
               <div className="mb-7 flex items-baseline gap-3">
@@ -102,7 +97,7 @@ export default function Home() {
                   href={site.repo}
                   className="label cursor-pointer border-b border-rule-strong pb-0.5 text-ink transition-colors duration-200 hover:border-oxblood hover:text-oxblood"
                 >
-                  GitHub &#8599;
+                  GitHub
                 </a>
               </div>
 
@@ -169,7 +164,7 @@ export default function Home() {
               </ul>
             </div>
 
-            <div className="flex justify-center md:col-span-5 md:justify-end">
+            <div className="flex md:col-span-5 md:justify-end">
               <LoopFigure />
             </div>
           </div>
@@ -273,17 +268,12 @@ export default function Home() {
               </div>
             ))}
           </div>
-
-          <div className="mt-12 grid gap-x-12 gap-y-6 border-t border-rule-strong pt-10 md:grid-cols-12">
-            <h3 className="m-0 text-xl md:col-span-4">Next, in Tier 3</h3>
-            <ul className="m-0 grid list-none gap-x-8 gap-y-3 p-0 md:col-span-8 md:grid-cols-2">
-              {upcoming.map((u) => (
-                <li key={u.name} className="text-ink-muted">
-                  {u.name}
-                </li>
-              ))}
-            </ul>
-          </div>
+          <a
+            href="/roadmap"
+            className="label mt-8 inline-block cursor-pointer border-b border-rule-strong pb-0.5 text-ink transition-colors duration-200 hover:border-oxblood hover:text-oxblood"
+          >
+            The full roadmap
+          </a>
         </Reveal>
       </section>
     </>

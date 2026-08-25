@@ -119,8 +119,11 @@ export default function DocsPage() {
                       className="group inline-block cursor-pointer no-underline"
                     >
                       <h3 className="m-0 text-xl transition-colors duration-200 group-hover:text-oxblood">
-                        {item.name}{" "}
-                        <span aria-hidden="true" className="text-ink-muted">
+                        {item.name}
+                        <span
+                          aria-hidden="true"
+                          className="ml-1.5 align-[0.15em] text-[0.6em] text-ink-muted transition-colors duration-200 group-hover:text-oxblood"
+                        >
                           &#8599;
                         </span>
                       </h3>

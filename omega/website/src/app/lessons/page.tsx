@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Reveal } from "@/components/site/interactive";
+import { measured } from "@/lib/content";
 
 export const metadata: Metadata = {
   title: "Lessons — omega",
@@ -50,6 +51,48 @@ export default function LessonsPage() {
           Written after the fact, kept honest. Where a number appears it was measured — including
           the ones that made the plan look wrong.
         </p>
+      </Reveal>
+
+      {/* The measurements the lessons are drawn from. */}
+      <Reveal delay={60}>
+        <div className="mt-14 grid gap-x-12 gap-y-8 border-t-2 border-rule-strong pt-7 md:grid-cols-12">
+          <div className="md:col-span-5">
+            <h2 className="m-0 max-w-[18ch] text-2xl leading-snug">Tier 1 to Tier 2, measured.</h2>
+            <p className="mt-4 max-w-[44ch] text-ink-muted">
+              Tests grew almost three times faster than source. That ratio is the single most useful
+              number here — it is what safety actually costs.
+            </p>
+          </div>
+
+          <div className="overflow-x-auto md:col-span-7">
+            <table className="w-full border-collapse text-left text-sm">
+              <thead>
+                <tr className="border-b border-rule-strong">
+                  <th className="label py-3 pr-6 font-medium text-ink-muted">&nbsp;</th>
+                  <th className="label py-3 pr-6 font-medium text-ink-muted">Tier 1</th>
+                  <th className="label py-3 pr-6 font-medium text-oxblood">Tier 2</th>
+                  <th className="label py-3 font-medium text-ink-muted">×</th>
+                </tr>
+              </thead>
+              <tbody>
+                {measured.map((m) => {
+                  const a = Number(m.tier1.replace(/,/g, ""));
+                  const b = Number(m.tier2.replace(/,/g, ""));
+                  return (
+                    <tr key={m.label} className="border-b border-rule">
+                      <td className="py-2.5 pr-6 text-ink-muted">{m.label}</td>
+                      <td className="tnum py-2.5 pr-6 font-mono text-ink-muted">{m.tier1}</td>
+                      <td className="tnum py-2.5 pr-6 font-mono">{m.tier2}</td>
+                      <td className="tnum py-2.5 font-mono text-ink-muted">
+                        {(b / a).toFixed(1)}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </Reveal>
 
       <ol className="m-0 mt-16 grid list-none gap-0 p-0">

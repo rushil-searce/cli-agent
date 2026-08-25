@@ -33,6 +33,7 @@ const NAV = [
   { label: "Docs", href: "/docs" },
   { label: "Rant", href: "/rant" },
   { label: "Lessons", href: "/lessons" },
+  { label: "Roadmap", href: "/roadmap" },
 ] as const;
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
