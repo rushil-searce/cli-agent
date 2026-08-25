@@ -1,14 +1,5 @@
 import { CopyCommand, Reveal } from "@/components/site/interactive";
-import {
-  claims,
-  commands,
-  layers,
-  providers,
-  site,
-  thesis,
-  timeline,
-  upcoming,
-} from "@/lib/content";
+import { claims, commands, layers, providers, site, timeline, upcoming } from "@/lib/content";
 
 const PAD = "px-6 md:px-12";
 
@@ -17,33 +8,67 @@ function Heading({ children }: { children: React.ReactNode }) {
 }
 
 /**
- * One engraved plate, not scattered glyphs: a radian construction on the unit
- * circle, drawn in hairlines the way a textbook figure is. Decorative — it sits
- * behind the hero and never competes with the text.
+ * The loop, drawn. Four stations and the exit — this is the mechanism the whole
+ * project is about, so it earns a figure rather than a decorative glyph.
+ *
+ * It occupies its own grid cell. Nothing is layered behind anything else, which
+ * is the only reliable way to guarantee a diagram never collides with text.
  */
-function Construction() {
+function LoopFigure() {
+  const stations = [
+    { x: 100, y: 26, label: "ask" },
+    { x: 174, y: 100, label: "requests a tool" },
+    { x: 100, y: 174, label: "run it" },
+    { x: 26, y: 100, label: "report back" },
+  ];
+
   return (
-    <svg
-      aria-hidden="true"
-      viewBox="0 0 200 200"
-      className="pointer-events-none absolute -right-16 -top-10 h-[26rem] w-[26rem] text-oxblood/[0.09] md:right-0 md:h-[34rem] md:w-[34rem] dark:text-oxblood/[0.13]"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="0.5"
-    >
-      <circle cx="100" cy="100" r="72" />
-      <circle cx="100" cy="100" r="52" strokeDasharray="2 3" />
-      <line x1="14" y1="100" x2="186" y2="100" />
-      <line x1="100" y1="14" x2="100" y2="186" />
-      {/* the radius at one radian, and the arc it subtends */}
-      <line x1="100" y1="100" x2="138.9" y2="39.4" />
-      <path d="M 172 100 A 72 72 0 0 0 138.9 39.4" strokeWidth="1.1" />
-      <path d="M 124 100 A 24 24 0 0 0 113 79.8" strokeWidth="0.5" />
-      <circle cx="138.9" cy="39.4" r="1.8" fill="currentColor" stroke="none" />
-      <circle cx="100" cy="100" r="1.8" fill="currentColor" stroke="none" />
-      {/* inscribed square — the compass-and-straightedge tell */}
-      <path d="M 100 28 L 172 100 L 100 172 L 28 100 Z" strokeDasharray="1 4" />
-    </svg>
+    <figure className="m-0">
+      <svg
+        viewBox="0 0 200 200"
+        role="img"
+        aria-label="The agent loop: ask, the model requests a tool, run it, report back, repeat until no tool is requested."
+        className="h-auto w-full max-w-[22rem] text-rule-strong"
+        fill="none"
+        stroke="currentColor"
+      >
+        {/* the cycle */}
+        <circle cx="100" cy="100" r="58" strokeWidth="1" strokeDasharray="3 4" />
+
+        {/* direction arrows on the cycle */}
+        {[
+          "M 148 72 L 152 82 L 142 84",
+          "M 128 152 L 118 156 L 116 146",
+          "M 52 128 L 48 118 L 58 116",
+          "M 72 48 L 82 44 L 84 54",
+        ].map((d) => (
+          <path key={d} d={d} strokeWidth="1.2" className="text-oxblood" />
+        ))}
+
+        {stations.map((s) => (
+          <g key={s.label}>
+            <circle cx={s.x} cy={s.y} r="4.5" className="fill-paper text-oxblood" strokeWidth="1.4" />
+          </g>
+        ))}
+
+        {/* the exit: no tool requested, the run ends */}
+        <line x1="100" y1="158" x2="100" y2="192" strokeWidth="1" className="text-forest" />
+        <path d="M 95 185 L 100 194 L 105 185" strokeWidth="1.2" className="text-forest" />
+      </svg>
+
+      <figcaption className="mt-5 grid gap-1.5">
+        {["ask", "it requests a tool", "run it", "report back"].map((step, i) => (
+          <span key={step} className="flex items-baseline gap-3 text-sm">
+            <span className="tnum label text-oxblood">{i + 1}</span>
+            <span className="text-ink-muted">{step}</span>
+          </span>
+        ))}
+        <span className="mt-2 flex items-baseline gap-3 border-t border-rule pt-2.5 text-sm">
+          <span className="label text-forest">stop</span>
+          <span className="text-ink-muted">no tool requested</span>
+        </span>
+      </figcaption>
+    </figure>
   );
 }
 
@@ -51,23 +76,22 @@ export default function Home() {
   return (
     <>
       {/* ── Hero ─────────────────────────────────────────────── */}
-      <section className={`relative overflow-hidden border-b border-rule ${PAD} py-16 md:py-20`}>
-        <Construction />
-
+      <section className={`border-b border-rule ${PAD} py-16 md:py-20`}>
         <Reveal>
           <div className="grid items-center gap-x-12 gap-y-12 md:grid-cols-12">
             <div className="md:col-span-6">
               <div className="mb-7 flex items-baseline gap-3">
                 <span className="font-serif text-4xl leading-none text-oxblood">&#937;</span>
-                <span className="label text-ink-muted">{site.eyebrow}</span>
+                <span className="label text-ink">omega</span>
               </div>
 
-              <h1 className="m-0 text-4xl leading-[1.06] md:text-[3.35rem]">
-                {site.headline}
-                <span className="block text-ink-muted">{site.headlineRest}</span>
+              <h1 className="m-0 max-w-[16ch] text-4xl leading-[1.08] md:text-[3.25rem]">
+                {site.tagline}
               </h1>
 
-              <p className="mt-6 max-w-[46ch] text-lg text-ink-muted">{thesis}</p>
+              <p className="mt-7 max-w-[42ch] text-lg text-ink-muted">
+                <span className="text-ink">{site.headline}</span> {site.headlineRest}
+              </p>
 
               <div className="mt-9 flex flex-wrap items-center gap-3">
                 <code className="border border-rule bg-paper-raised px-3.5 py-2 font-mono text-[13px]">
@@ -76,15 +100,14 @@ export default function Home() {
                 <CopyCommand value={`git clone ${site.repo}.git`} />
                 <a
                   href={site.repo}
-                  className="label cursor-pointer border-b border-rule-strong pb-0.5 text-ink transition-colors hover:border-oxblood hover:text-oxblood"
+                  className="label cursor-pointer border-b border-rule-strong pb-0.5 text-ink transition-colors duration-200 hover:border-oxblood hover:text-oxblood"
                 >
                   GitHub &#8599;
                 </a>
               </div>
 
-              <p className="mt-5 max-w-[44ch] text-sm text-ink-muted">
-                Nothing is published to PyPI or npm, and nothing will be until it earns it. Clone
-                it, run it, send a pull request — new providers especially.
+              <p className="mt-5 text-sm text-ink-muted">
+                No package to install. Clone it and run it.
               </p>
             </div>
 
@@ -126,25 +149,30 @@ export default function Home() {
       <section className={`border-b border-rule ${PAD} py-16`}>
         <Reveal>
           <Heading>the loop</Heading>
-          <div className="grid gap-x-12 gap-y-10 md:grid-cols-12">
-            <h2 className="m-0 text-3xl md:col-span-5">
-              Ask, run what it asks for, report back, repeat.
-            </h2>
-            <p className="m-0 max-w-[60ch] text-lg text-ink-muted md:col-span-7">
-              That is the entire idea, and it is why the loop file is short. Everything hard —
-              budgets, approvals, retries, persistence — lives <em>around</em> it, reached through
-              callbacks. The loop asks; it never decides.
-            </p>
-          </div>
+          <div className="grid gap-x-12 gap-y-12 md:grid-cols-12">
+            <div className="md:col-span-7">
+              <h2 className="m-0 max-w-[18ch] text-3xl">
+                Ask, run what it asks for, report back, repeat.
+              </h2>
+              <p className="mt-5 max-w-[52ch] text-lg text-ink-muted">
+                That is the whole mechanism. Everything hard — budgets, approvals, retries,
+                persistence — lives <em>around</em> it, reached through callbacks. The loop asks; it
+                never decides.
+              </p>
 
-          <ul className="m-0 mt-14 grid list-none gap-x-10 gap-y-9 p-0 md:grid-cols-3">
-            {claims.map((c) => (
-              <li key={c.title} className="border-t border-rule-strong pt-5">
-                <h3 className="m-0 text-xl leading-snug">{c.title}</h3>
-                <p className="m-0 mt-3 text-ink-muted">{c.body}</p>
-              </li>
-            ))}
-          </ul>
+              <ul className="m-0 mt-10 grid list-none gap-x-10 gap-y-7 p-0 sm:grid-cols-2">
+                {claims.map((c) => (
+                  <li key={c.title} className="border-t border-rule-strong pt-4">
+                    <h3 className="m-0 text-lg leading-snug">{c.title}</h3>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <div className="flex justify-center md:col-span-5 md:justify-end">
+              <LoopFigure />
+            </div>
+          </div>
         </Reveal>
       </section>
 
@@ -155,13 +183,9 @@ export default function Home() {
           <div className="grid gap-x-12 gap-y-8 md:grid-cols-12">
             <div className="md:col-span-5">
               <h2 className="mt-0 text-3xl">Dependencies point one way.</h2>
-              <p className="mt-4 text-ink-muted">
+              <p className="mt-5 max-w-[42ch] text-ink-muted">
                 An arrow means <em>this layer knows the other exists</em> — knowledge, not data.
-                Data moves both ways; knowledge only downward.
-              </p>
-              <p className="mt-4 text-ink-muted">
-                Nothing above Layer&nbsp;2 can reach in and change the loop, which is the only
-                reason it stayed small while the system around it reached 4,654 lines.
+                Nothing above Layer&nbsp;2 can reach in and change the loop.
               </p>
             </div>
 
@@ -218,7 +242,7 @@ export default function Home() {
               <article key={p.name} className="border-t-2 border-oxblood pt-5">
                 <h3 className="m-0 text-2xl">{p.name}</h3>
                 <p className="m-0 mt-1 font-mono text-xs text-ink-muted">{p.file}</p>
-                <p className="mt-4 text-ink-muted">{p.detail}</p>
+                <p className="mt-4 max-w-[46ch] text-ink-muted">{p.detail}</p>
               </article>
             ))}
           </div>
@@ -233,7 +257,7 @@ export default function Home() {
             {timeline.map((t, i) => (
               <div
                 key={t.tier}
-                className={`grid gap-x-8 gap-y-2 py-7 md:grid-cols-12 ${
+                className={`grid gap-x-8 gap-y-2 py-6 md:grid-cols-12 ${
                   i < timeline.length - 1 ? "border-b border-rule" : ""
                 }`}
               >
@@ -245,33 +269,23 @@ export default function Home() {
                     {t.status}
                   </span>
                 </div>
-                <div className="md:col-span-9">
-                  <p className="m-0 text-xl">{t.headline}</p>
-                  <p className="m-0 mt-2 max-w-[64ch] text-ink-muted">{t.body}</p>
-                </div>
+                <p className="m-0 text-xl md:col-span-9">{t.headline}</p>
               </div>
             ))}
           </div>
 
-          <div className="mt-12 grid gap-x-12 gap-y-8 border-t border-rule-strong pt-10 md:grid-cols-12">
-            <div className="md:col-span-4">
-              <h3 className="m-0 text-xl">What Tier 3 adds</h3>
-              <p className="mt-3 text-sm text-ink-muted">
-                Every one plugs into a seam that already exists. None requires moving the loop.
-              </p>
-            </div>
-            <ul className="m-0 grid list-none gap-x-8 gap-y-4 p-0 md:col-span-8 md:grid-cols-2">
+          <div className="mt-12 grid gap-x-12 gap-y-6 border-t border-rule-strong pt-10 md:grid-cols-12">
+            <h3 className="m-0 text-xl md:col-span-4">Next, in Tier 3</h3>
+            <ul className="m-0 grid list-none gap-x-8 gap-y-3 p-0 md:col-span-8 md:grid-cols-2">
               {upcoming.map((u) => (
-                <li key={u.name}>
-                  <p className="m-0 font-medium">{u.name}</p>
-                  <p className="m-0 mt-0.5 text-sm text-ink-muted">{u.seam}</p>
+                <li key={u.name} className="text-ink-muted">
+                  {u.name}
                 </li>
               ))}
             </ul>
           </div>
         </Reveal>
       </section>
-
     </>
   );
 }
