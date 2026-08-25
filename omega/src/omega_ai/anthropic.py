@@ -45,13 +45,6 @@ from omega_agent.events import (
     ToolCallEndEvent,
     ToolCallStartEvent,
 )
-from omega_agent.providers.retry import (
-    DEFAULT_RETRY,
-    RetryPolicy,
-    delay_for,
-    is_retryable,
-    retry_after_of,
-)
 from omega_agent.tools import Tool
 from omega_agent.types import (
     AgentMessage,
@@ -63,6 +56,13 @@ from omega_agent.types import (
     ToolResultMessage,
     Usage,
     UserMessage,
+)
+from omega_ai.retry import (
+    DEFAULT_RETRY,
+    RetryPolicy,
+    delay_for,
+    is_retryable,
+    retry_after_of,
 )
 
 DEFAULT_MODEL = "claude-sonnet-5"
@@ -158,7 +158,7 @@ AuthResolver = Callable[[], Awaitable[str]]
 # ------------------------------------------------------------------- the adapter
 
 class AnthropicProvider:
-    """Implements `omega.provider.ModelProvider`. Inherits from nothing."""
+    """Implements `omega_agent.provider.ModelProvider`. Inherits from nothing."""
 
     def __init__(
         self,

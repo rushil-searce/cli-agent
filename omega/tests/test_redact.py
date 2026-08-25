@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import pytest
 
-from omega.redact import redact
+from omega_coding.redact import redact
 
 
 @pytest.mark.parametrize(
@@ -101,12 +101,12 @@ async def test_a_leaked_key_never_reaches_the_transcript() -> None:
     """End to end through the hook, which is the only thing that matters."""
     from typing import Any
 
-    from omega.harness import Harness
-    from omega.hooks import AgentHooks
-    from omega.providers.fake import FakeProvider, text_turn, tool_turn
-    from omega.redact import redacting_hook
-    from omega.tools import Tool, ToolResult
-    from omega.types import ToolResultMessage
+    from omega_agent.harness import Harness
+    from omega_agent.hooks import AgentHooks
+    from omega_agent.tools import Tool, ToolResult
+    from omega_agent.types import ToolResultMessage
+    from omega_ai.fake import FakeProvider, text_turn, tool_turn
+    from omega_coding.redact import redacting_hook
 
     async def leaky(arguments: dict[str, Any], signal: Any) -> ToolResult:
         return ToolResult(content="ANTHROPIC_API_KEY=sk-ant-api03-LEAKEDLEAKEDLEAKEDLEAKED")

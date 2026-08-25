@@ -26,12 +26,18 @@ import pytest
 
 import stub_anthropic
 import stub_openai
-from omega.provider import ModelProvider
-from omega.providers.anthropic import AnthropicProvider
-from omega.providers.openai import OpenAIProvider
-from omega.providers.retry import RetryPolicy
-from omega.tools import Tool
-from omega.types import AgentMessage, AssistantMessage, ToolCall, ToolResultMessage, UserMessage
+from omega_agent.provider import ModelProvider
+from omega_agent.tools import Tool
+from omega_agent.types import (
+    AgentMessage,
+    AssistantMessage,
+    ToolCall,
+    ToolResultMessage,
+    UserMessage,
+)
+from omega_ai.anthropic import AnthropicProvider
+from omega_ai.openai import OpenAIProvider
+from omega_ai.retry import RetryPolicy
 
 _FAST = RetryPolicy(attempts=3, base_delay=0.0)
 
@@ -281,8 +287,8 @@ async def test_the_whole_application_stack_runs_on_either_provider(
     with only the provider swapped. None of those files was touched to add the
     second one.
     """
-    from omega.builtin_tools import build_tools
-    from omega.headless import run_headless
+    from omega_coding.builtin_tools import build_tools
+    from omega_coding.headless import run_headless
 
     provider, _client = adapter(script="tool")
 

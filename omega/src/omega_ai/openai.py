@@ -57,13 +57,6 @@ from omega_agent.events import (
     ToolCallEndEvent,
     ToolCallStartEvent,
 )
-from omega_agent.providers.retry import (
-    DEFAULT_RETRY,
-    RetryPolicy,
-    delay_for,
-    is_retryable,
-    retry_after_of,
-)
 from omega_agent.tools import Tool
 from omega_agent.types import (
     AgentMessage,
@@ -74,6 +67,13 @@ from omega_agent.types import (
     ToolResultMessage,
     Usage,
     UserMessage,
+)
+from omega_ai.retry import (
+    DEFAULT_RETRY,
+    RetryPolicy,
+    delay_for,
+    is_retryable,
+    retry_after_of,
 )
 
 DEFAULT_MODEL = "gpt-5"
@@ -171,7 +171,7 @@ def normalise_finish_reason(raw: str | None, *, has_tool_calls: bool) -> DoneRea
 # ------------------------------------------------------------------- adapter
 
 class OpenAIProvider:
-    """Implements `omega.provider.ModelProvider`. Inherits from nothing.
+    """Implements `omega_agent.provider.ModelProvider`. Inherits from nothing.
 
     `base_url` is what makes this more than one vendor: Groq, Together, Ollama
     and vLLM all serve this wire format.

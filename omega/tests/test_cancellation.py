@@ -14,11 +14,11 @@ from __future__ import annotations
 
 from typing import Any
 
-from omega.agent_events import AgentEvent
-from omega.cancellation import CancelSignal
-from omega.harness import Harness
-from omega.providers.fake import FakeProvider, text_turn, tool_turn
-from omega.tools import Tool, ToolResult
+from omega_agent.agent_events import AgentEvent
+from omega_agent.cancellation import CancelSignal
+from omega_agent.harness import Harness
+from omega_agent.tools import Tool, ToolResult
+from omega_ai.fake import FakeProvider, text_turn, tool_turn
 
 
 async def _ok(arguments: dict[str, Any], signal: Any) -> ToolResult:
@@ -52,7 +52,7 @@ def test_the_token_starts_clear_and_latches_when_set() -> None:
 
 def test_it_satisfies_the_protocol_without_inheriting_it() -> None:
     """Structural typing, same as FakeProvider and ModelProvider."""
-    from omega.types import CancellationToken
+    from omega_agent.types import CancellationToken
 
     assert isinstance(CancelSignal(), CancellationToken)
 
@@ -214,7 +214,7 @@ async def test_ctrl_c_during_a_tool_leaves_a_valid_transcript() -> None:
     assert len(provider.calls) == 1, "the loop must not start a turn after cancellation"
     assert events[-1].reason == "aborted"
 
-    from omega.types import AssistantMessage, ToolResultMessage
+    from omega_agent.types import AssistantMessage, ToolResultMessage
 
     asked = {
         b.id for m in harness.messages if isinstance(m, AssistantMessage) for b in m.tool_calls
@@ -256,7 +256,7 @@ async def test_the_transcript_after_an_interrupt_is_resumable() -> None:
     assert second[-1].reason == "stop"
 
     sent = provider.calls[-1].messages
-    from omega.types import AssistantMessage, ToolResultMessage
+    from omega_agent.types import AssistantMessage, ToolResultMessage
 
     asked = {b.id for m in sent if isinstance(m, AssistantMessage) for b in m.tool_calls}
     answered = {m.tool_call_id for m in sent if isinstance(m, ToolResultMessage)}

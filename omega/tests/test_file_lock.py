@@ -16,7 +16,7 @@ from __future__ import annotations
 import asyncio
 from pathlib import Path
 
-from omega.file_lock import FileLocks
+from omega_coding.file_lock import FileLocks
 
 
 async def test_the_same_path_serialises() -> None:

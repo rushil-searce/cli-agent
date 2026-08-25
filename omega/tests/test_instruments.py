@@ -12,19 +12,19 @@ from __future__ import annotations
 
 from typing import Any
 
-from omega.context import (
+from omega_agent.harness import Harness
+from omega_agent.tools import Tool, ToolResult
+from omega_agent.types import AssistantMessage, TextContent, ToolCall, Usage, UserMessage
+from omega_ai.fake import FakeProvider, text_turn, tool_turn
+from omega_coding.context import (
     DEFAULT_CONTEXT_WINDOW,
     ContextUsage,
     estimate_request_tokens,
     measure,
     window_for,
 )
-from omega.cost import CostTracker, Price
-from omega.harness import Harness
-from omega.history import drop_empty_failed_turns
-from omega.providers.fake import FakeProvider, text_turn, tool_turn
-from omega.tools import Tool, ToolResult
-from omega.types import AssistantMessage, TextContent, ToolCall, Usage, UserMessage
+from omega_coding.cost import CostTracker, Price
+from omega_coding.history import drop_empty_failed_turns
 
 
 async def _ok(arguments: dict[str, Any], signal: Any) -> ToolResult:
@@ -162,7 +162,7 @@ async def test_it_works_as_a_harness_listener() -> None:
 
 def test_price_from_env_needs_both_halves(monkeypatch: Any) -> None:
     """Input-only pricing would under-report by most of the bill."""
-    from omega.cost import price_from_env
+    from omega_coding.cost import price_from_env
 
     monkeypatch.setenv("OMEGA_PRICE_INPUT", "3.0")
     monkeypatch.delenv("OMEGA_PRICE_OUTPUT", raising=False)
@@ -173,7 +173,7 @@ def test_price_from_env_needs_both_halves(monkeypatch: Any) -> None:
 
 
 def test_a_malformed_price_is_ignored_not_crashed(monkeypatch: Any) -> None:
-    from omega.cost import price_from_env
+    from omega_coding.cost import price_from_env
 
     monkeypatch.setenv("OMEGA_PRICE_INPUT", "free")
     monkeypatch.setenv("OMEGA_PRICE_OUTPUT", "15.0")
@@ -224,7 +224,7 @@ async def test_successful_turns_are_never_dropped() -> None:
 
 async def test_it_changes_what_the_provider_sees_not_what_is_kept() -> None:
     """End to end as a convert_to_llm hook."""
-    from omega.hooks import AgentHooks
+    from omega_agent.hooks import AgentHooks
 
     provider = FakeProvider([text_turn("second try")])
     harness = Harness(
@@ -305,8 +305,8 @@ async def test_no_queued_messages_changes_nothing() -> None:
 
 async def test_caller_supplied_queue_hooks_win() -> None:
     """The harness only fills these if nobody else did."""
-    from omega.hooks import AgentHooks
-    from omega.types import AgentMessage
+    from omega_agent.hooks import AgentHooks
+    from omega_agent.types import AgentMessage
 
     async def mine() -> list[AgentMessage]:
         return [UserMessage(content="from the caller")]

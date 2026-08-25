@@ -18,10 +18,10 @@ from pathlib import Path
 
 import pytest
 
-from omega.builtin_tools import build_tools
-from omega.file_lock import FileLocks
-from omega.paths import PathOutsideRoot
-from omega.tools import Tool, ToolError
+from omega_agent.tools import Tool, ToolError
+from omega_coding.builtin_tools import build_tools
+from omega_coding.file_lock import FileLocks
+from omega_coding.paths import PathOutsideRoot
 
 
 def _edit(root: Path, locks: FileLocks | None = None) -> Tool:

@@ -27,22 +27,22 @@ import json
 from pathlib import Path
 from typing import Any
 
-from omega.harness import Harness
-from omega.providers.fake import FakeProvider, text_turn, tool_turn
-from omega.session import (
+from omega_agent.harness import Harness
+from omega_agent.session import (
     SCHEMA_VERSION,
     JsonlSessionStore,
     SessionEntry,
     read_records,
 )
-from omega.tools import Tool, ToolResult
-from omega.types import (
+from omega_agent.tools import Tool, ToolResult
+from omega_agent.types import (
     AssistantMessage,
     TextContent,
     ToolCall,
     ToolResultMessage,
     UserMessage,
 )
+from omega_ai.fake import FakeProvider, text_turn, tool_turn
 
 
 async def _ok(arguments: dict[str, Any], signal: Any) -> ToolResult:

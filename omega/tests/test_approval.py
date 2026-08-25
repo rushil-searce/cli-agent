@@ -28,8 +28,8 @@ from typing import Any
 
 import pytest
 
-from omega.approval import ApprovalPolicy, ApprovalRequest
-from omega.types import ToolCall
+from omega_agent.types import ToolCall
+from omega_coding.approval import ApprovalPolicy, ApprovalRequest
 
 CATASTROPHES = [
     'rm -rf /',
@@ -220,11 +220,11 @@ async def test_the_request_describes_what_will_happen() -> None:
 
 async def test_the_gate_stops_a_tool_through_the_real_loop() -> None:
     """End to end: the policy as a before_tool_call hook, and the tool never runs."""
-    from omega.harness import Harness
-    from omega.hooks import AgentHooks
-    from omega.providers.fake import FakeProvider, text_turn, tool_turn
-    from omega.tools import Tool, ToolResult
-    from omega.types import ToolResultMessage
+    from omega_agent.harness import Harness
+    from omega_agent.hooks import AgentHooks
+    from omega_agent.tools import Tool, ToolResult
+    from omega_agent.types import ToolResultMessage
+    from omega_ai.fake import FakeProvider, text_turn, tool_turn
 
     ran: list[str] = []
 

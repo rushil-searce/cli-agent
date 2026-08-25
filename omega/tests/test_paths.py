@@ -20,7 +20,7 @@ from pathlib import Path
 
 import pytest
 
-from omega.paths import PathOutsideRoot, resolve_within_root
+from omega_coding.paths import PathOutsideRoot, resolve_within_root
 
 
 def test_a_plain_relative_path_resolves_under_the_root(tmp_path: Path) -> None:
@@ -131,7 +131,7 @@ def test_the_error_names_the_path_and_the_root(tmp_path: Path) -> None:
 
 def test_it_is_a_tool_error_so_the_loop_reports_it_as_a_result(tmp_path: Path) -> None:
     """Refusal is an observation for the model, not a crash."""
-    from omega.tools import ToolError
+    from omega_agent.tools import ToolError
 
     assert issubclass(PathOutsideRoot, ToolError)
 

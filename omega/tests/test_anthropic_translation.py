@@ -8,13 +8,19 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from omega.builtin_tools import build_tools
-from omega.providers.anthropic import (
+from omega_agent.types import (
+    AssistantMessage,
+    TextContent,
+    ToolCall,
+    ToolResultMessage,
+    UserMessage,
+)
+from omega_ai.anthropic import (
     normalise_stop_reason,
     to_anthropic_messages,
     to_anthropic_tools,
 )
-from omega.types import AssistantMessage, TextContent, ToolCall, ToolResultMessage, UserMessage
+from omega_coding.builtin_tools import build_tools
 
 
 def test_tools_become_input_schema() -> None:

@@ -5,13 +5,13 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from omega.events import (
+from omega_agent.events import (
     AssistantDoneEvent,
     AssistantErrorEvent,
     AssistantStartEvent,
     TextDeltaEvent,
 )
-from omega.types import AssistantMessage, TextContent, ToolCall, ToolResultMessage
+from omega_agent.types import AssistantMessage, TextContent, ToolCall, ToolResultMessage
 
 
 def test_assistant_message_reports_its_tool_calls() -> None:

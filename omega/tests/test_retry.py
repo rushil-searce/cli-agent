@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import pytest
 
-from omega.providers.retry import (
+from omega_ai.retry import (
     DEFAULT_RETRY,
     RetryPolicy,
     delay_for,
@@ -105,7 +105,7 @@ def test_no_header_means_no_advice() -> None:
 
 async def test_a_failed_connection_is_retried_and_succeeds() -> None:
     """The whole point: a 503 on connect costs a pause, not the run."""
-    from omega.providers.anthropic import AnthropicProvider
+    from omega_ai.anthropic import AnthropicProvider
     from stub_anthropic import StubClient
 
     client = StubClient(fail_times=2, error=lambda: _Status(503))
@@ -131,7 +131,7 @@ async def test_retries_are_invisible_above_the_provider() -> None:
     The loop must not be able to tell. If a retry produced an extra `start` or a
     stray `error`, everything above would have to learn about retrying.
     """
-    from omega.providers.anthropic import AnthropicProvider
+    from omega_ai.anthropic import AnthropicProvider
     from stub_anthropic import StubClient
 
     provider = AnthropicProvider(
@@ -152,7 +152,7 @@ async def test_retries_are_invisible_above_the_provider() -> None:
 
 
 async def test_a_bad_request_is_reported_immediately() -> None:
-    from omega.providers.anthropic import AnthropicProvider
+    from omega_ai.anthropic import AnthropicProvider
     from stub_anthropic import StubClient
 
     client = StubClient(fail_times=99, error=lambda: _Status(400))
@@ -174,7 +174,7 @@ async def test_a_bad_request_is_reported_immediately() -> None:
 
 async def test_giving_up_still_produces_exactly_one_terminal_event() -> None:
     """Exhausting the retries is a failure, not a contract violation."""
-    from omega.providers.anthropic import AnthropicProvider
+    from omega_ai.anthropic import AnthropicProvider
     from stub_anthropic import StubClient
 
     client = StubClient(fail_times=99, error=lambda: _Status(503))
@@ -202,7 +202,7 @@ async def test_a_failure_after_output_is_not_retried() -> None:
     once anything has gone upward the retry budget is spent, and the failure is
     reported with the partial content attached - the Tier 1 behaviour, unchanged.
     """
-    from omega.providers.anthropic import AnthropicProvider
+    from omega_ai.anthropic import AnthropicProvider
     from stub_anthropic import StubClient
 
     client = StubClient(fail_times=0, fail_midstream_after=2, error=lambda: _Status(503))
@@ -228,7 +228,7 @@ async def test_a_failure_after_output_is_not_retried() -> None:
 
 async def test_the_key_is_resolved_before_every_request() -> None:
     """A string cannot refresh; a callback can. That is the entire seam."""
-    from omega.providers.anthropic import AnthropicProvider
+    from omega_ai.anthropic import AnthropicProvider
     from stub_anthropic import StubClient
 
     keys = iter(["first-key", "second-key"])
@@ -250,7 +250,7 @@ async def test_the_key_is_resolved_before_every_request() -> None:
 
 async def test_the_key_is_re_resolved_on_retry() -> None:
     """The case the seam exists for: the token expired, so the retry needs a new one."""
-    from omega.providers.anthropic import AnthropicProvider
+    from omega_ai.anthropic import AnthropicProvider
     from stub_anthropic import StubClient
 
     resolved: list[str] = []
@@ -273,7 +273,7 @@ async def test_the_key_is_re_resolved_on_retry() -> None:
 
 def test_a_static_key_still_works() -> None:
     """The resolver is additive; nothing that worked in Tier 1 changed."""
-    from omega.providers.anthropic import AnthropicProvider
+    from omega_ai.anthropic import AnthropicProvider
     from stub_anthropic import StubClient
 
     provider = AnthropicProvider(client=StubClient(), api_key="static")  # type: ignore[arg-type]

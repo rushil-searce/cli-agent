@@ -13,9 +13,9 @@ from pathlib import Path
 
 import pytest
 
-from omega.builtin_tools import build_tools
-from omega.paths import PathOutsideRoot
-from omega.tools import Tool, ToolError
+from omega_agent.tools import Tool, ToolError
+from omega_coding.builtin_tools import build_tools
+from omega_coding.paths import PathOutsideRoot
 
 
 def _tools(root: Path, **kwargs: object) -> dict[str, Tool]:
@@ -142,7 +142,7 @@ async def test_a_hung_command_is_killed(tmp_path: Path) -> None:
 
 async def test_a_running_command_honours_cancellation(tmp_path: Path) -> None:
     """Ctrl-C during a long command should not mean waiting out the timeout."""
-    from omega.cancellation import CancelSignal
+    from omega_agent.cancellation import CancelSignal
 
     signal = CancelSignal()
 

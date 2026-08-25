@@ -20,10 +20,10 @@ from __future__ import annotations
 
 from typing import Any
 
-from omega.harness import Harness
-from omega.providers.fake import FakeProvider, text_turn
-from omega.tools import Tool, ToolResult
-from omega.types import AssistantMessage, ToolCall, ToolResultMessage, UserMessage
+from omega_agent.harness import Harness
+from omega_agent.tools import Tool, ToolResult
+from omega_agent.types import AssistantMessage, ToolCall, ToolResultMessage, UserMessage
+from omega_ai.fake import FakeProvider, text_turn
 
 
 async def _ok(arguments: dict[str, Any], signal: Any) -> ToolResult:

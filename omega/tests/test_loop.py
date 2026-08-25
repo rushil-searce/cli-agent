@@ -15,16 +15,16 @@ from typing import Any
 
 import pytest
 
-from omega.loop import run_agent_loop
-from omega.providers.fake import FakeProvider, text_turn, tool_turn
-from omega.tools import Tool, ToolResult
-from omega.types import (
+from omega_agent.loop import run_agent_loop
+from omega_agent.tools import Tool, ToolResult
+from omega_agent.types import (
     AgentMessage,
     AssistantMessage,
     CancellationToken,
     ToolResultMessage,
     UserMessage,
 )
+from omega_ai.fake import FakeProvider, text_turn, tool_turn
 
 
 async def _ok(arguments: dict[str, Any], signal: CancellationToken | None) -> ToolResult:
@@ -101,7 +101,7 @@ async def test_max_turns_halts_a_provider_that_never_stops() -> None:
 
 
 async def test_terminal_error_ends_the_run_without_raising() -> None:
-    from omega.events import AssistantErrorEvent
+    from omega_agent.events import AssistantErrorEvent
 
     failed = AssistantMessage(model="test-model", stop_reason="error", error_message="upstream 500")
     messages, events, provider = await _run(

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from omega.truncate import MAX_BYTES, MAX_LINES, truncate_output
+from omega_coding.truncate import MAX_BYTES, MAX_LINES, truncate_output
 
 
 def test_short_output_is_untouched_and_writes_no_file() -> None:

@@ -13,8 +13,8 @@ stopped mentioning the tools.
 
 Run it:
 
-    uv run python -m omega.evals            # scripted, offline, free
-    uv run python -m omega.evals --real     # against the configured provider
+    uv run python -m omega_coding.evals            # scripted, offline, free
+    uv run python -m omega_coding.evals --real     # against the configured provider
 
 `anatomy.md:400` notes this shares its driver with terminal-bench. The driver is
 `headless.py`; this is one task pointed at it.
@@ -28,10 +28,10 @@ import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
-from omega_agent.builtin_tools import build_tools
-from omega_agent.headless import HeadlessResult, run_headless
 from omega_agent.provider import ModelProvider
-from omega_agent.providers.fake import FakeProvider, text_turn, tool_turn
+from omega_ai.fake import FakeProvider, text_turn, tool_turn
+from omega_coding.builtin_tools import build_tools
+from omega_coding.headless import HeadlessResult, run_headless
 
 TASK = "Create a file called hello.txt containing exactly: hi"
 
@@ -113,7 +113,7 @@ def main(argv: list[str] | None = None) -> int:
     real = "--real" in args
 
     if real:
-        from omega_agent.providers.anthropic import DEFAULT_MODEL, AnthropicProvider
+        from omega_ai.anthropic import DEFAULT_MODEL, AnthropicProvider
 
         provider: ModelProvider = AnthropicProvider()
         model = DEFAULT_MODEL

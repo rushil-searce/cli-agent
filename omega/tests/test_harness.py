@@ -13,12 +13,18 @@ from __future__ import annotations
 
 from typing import Any
 
-from omega.agent_events import AgentEvent
-from omega.harness import Harness
-from omega.hooks import AgentHooks, ToolCallDecision
-from omega.providers.fake import FakeProvider, text_turn, tool_turn
-from omega.tools import Tool, ToolResult
-from omega.types import AgentMessage, AssistantMessage, ToolCall, ToolResultMessage, UserMessage
+from omega_agent.agent_events import AgentEvent
+from omega_agent.harness import Harness
+from omega_agent.hooks import AgentHooks, ToolCallDecision
+from omega_agent.tools import Tool, ToolResult
+from omega_agent.types import (
+    AgentMessage,
+    AssistantMessage,
+    ToolCall,
+    ToolResultMessage,
+    UserMessage,
+)
+from omega_ai.fake import FakeProvider, text_turn, tool_turn
 
 RAN: list[dict[str, Any]] = []
 

@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from omega.provider import ModelProvider
-from omega.providers.fake import FakeProvider, text_turn, tool_turn
-from omega.types import UserMessage
+from omega_agent.provider import ModelProvider
+from omega_agent.types import UserMessage
+from omega_ai.fake import FakeProvider, text_turn, tool_turn
 
 
 def test_fake_satisfies_the_protocol_without_inheriting_anything() -> None:

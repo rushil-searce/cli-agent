@@ -12,14 +12,8 @@ the neutral `ToolResultMessage` above them never had to pick a side.
 
 from __future__ import annotations
 
-from omega.providers.anthropic import to_anthropic_messages
-from omega.providers.openai import (
-    normalise_finish_reason,
-    to_openai_messages,
-    to_openai_tools,
-)
-from omega.tools import Tool
-from omega.types import (
+from omega_agent.tools import Tool
+from omega_agent.types import (
     AgentMessage,
     AssistantMessage,
     TextContent,
@@ -27,6 +21,12 @@ from omega.types import (
     ToolCall,
     ToolResultMessage,
     UserMessage,
+)
+from omega_ai.anthropic import to_anthropic_messages
+from omega_ai.openai import (
+    normalise_finish_reason,
+    to_openai_messages,
+    to_openai_tools,
 )
 
 

@@ -21,7 +21,6 @@ from __future__ import annotations
 from dataclasses import dataclass, field, replace
 
 from omega_agent.agent_events import AgentEndReason, AgentEvent
-from omega_agent.approval import ApprovalPolicy
 from omega_agent.cancellation import CancelSignal
 from omega_agent.harness import Harness
 from omega_agent.hooks import AgentHooks
@@ -30,6 +29,7 @@ from omega_agent.provider import ModelProvider
 from omega_agent.session import SessionStore
 from omega_agent.tools import Tool
 from omega_agent.types import AgentMessage, AssistantMessage
+from omega_coding.approval import ApprovalPolicy
 
 
 @dataclass(frozen=True, slots=True)

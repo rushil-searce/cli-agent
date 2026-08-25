@@ -13,7 +13,7 @@ so the names are copied verbatim rather than improved.
 
 from __future__ import annotations
 
-from omega.agent_events import AGENT_EVENT_TYPES
+from omega_agent.agent_events import AGENT_EVENT_TYPES
 
 
 def test_there_are_exactly_ten() -> None:
@@ -44,6 +44,6 @@ def test_they_nest_four_deep() -> None:
     Asserted as a property of the names rather than of a run: every level except
     `agent` is scoped by the one above it, which is what lets a UI indent them.
     """
-    from omega.agent_events import AGENT_EVENT_NESTING
+    from omega_agent.agent_events import AGENT_EVENT_NESTING
 
     assert AGENT_EVENT_NESTING == ("agent", "turn", "message", "tool_execution")

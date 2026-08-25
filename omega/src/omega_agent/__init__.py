@@ -1,15 +1,19 @@
-"""omega — a terminal coding agent built in layers.
+"""omega_agent — Layer 2, the portable core.
 
-Tier 1 contains two layers:
+The loop, the harness, the two event vocabularies, the message model, and the
+provider *contract*. What it knows about: messages, events, tools, turns.
 
-    Layer 1  provider   types.py, events.py, provider.py, providers/
-    Layer 2  agent core tools.py, loop.py
+What it does not know about, and must never learn: **files, shells, terminals,
+and vendors.** Those are `omega_coding` and `omega_ai` respectively, and both of
+them import this package rather than the other way round.
 
-Nothing above Layer 2 exists yet. `cli.py` is a print-based REPL, deliberately
-not a terminal UI: at this tier a UI would hide whether the loop works.
+`provider.py` living here is the point of the whole arrangement. The consumer
+defines the interface and adapters conform to it — reverse that and Anthropic's
+shape becomes the shape of the system. `omega_ai/provider.py` is a re-export, so
+adapters can import from their own package without owning the contract, which is
+exactly what Tau does.
 
-The rule that shapes the package: **nothing points upward**. `providers/` knows
-nothing about the loop, and the loop knows nothing about Anthropic.
+`tests/test_layers.py` enforces all of this rather than trusting it.
 """
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"

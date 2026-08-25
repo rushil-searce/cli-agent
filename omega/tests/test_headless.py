@@ -19,12 +19,12 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from omega.builtin_tools import build_tools
-from omega.headless import run_headless
-from omega.hooks import AgentHooks, ToolCallDecision
-from omega.providers.fake import FakeProvider, text_turn, tool_turn
-from omega.tools import Tool, ToolResult
-from omega.types import ToolCall
+from omega_agent.hooks import AgentHooks, ToolCallDecision
+from omega_agent.tools import Tool, ToolResult
+from omega_agent.types import ToolCall
+from omega_ai.fake import FakeProvider, text_turn, tool_turn
+from omega_coding.builtin_tools import build_tools
+from omega_coding.headless import run_headless
 
 
 async def _ok(arguments: dict[str, Any], signal: Any) -> ToolResult:
@@ -100,7 +100,7 @@ async def test_approve_false_means_the_tools_are_refused() -> None:
         approve=False,
     )
 
-    from omega.types import ToolResultMessage
+    from omega_agent.types import ToolResultMessage
 
     refusal = next(m for m in result.messages if isinstance(m, ToolResultMessage))
     assert refusal.is_error is True
@@ -132,7 +132,7 @@ async def test_a_caller_supplied_gate_wins() -> None:
 
 
 async def test_the_smoke_eval_passes_against_a_working_model() -> None:
-    from omega.evals import _scripted_provider, run_smoke
+    from omega_coding.evals import _scripted_provider, run_smoke
 
     checks = await run_smoke(_scripted_provider(), model="fake-model")
 
@@ -142,7 +142,7 @@ async def test_the_smoke_eval_passes_against_a_working_model() -> None:
 
 async def test_the_smoke_eval_fails_when_the_agent_does_nothing() -> None:
     """An eval that cannot fail is not measuring anything."""
-    from omega.evals import run_smoke
+    from omega_coding.evals import run_smoke
 
     checks = await run_smoke(FakeProvider([text_turn("I would rather not")]), model="fake-model")
 
@@ -156,7 +156,7 @@ async def test_the_smoke_eval_fails_when_the_agent_does_nothing() -> None:
 
 async def test_the_eval_writes_nowhere_near_the_repo() -> None:
     """An eval that writes into the repo it tests eventually breaks the repo."""
-    from omega.evals import _scripted_provider, run_smoke
+    from omega_coding.evals import _scripted_provider, run_smoke
 
     before = set(Path.cwd().iterdir())
     await run_smoke(_scripted_provider(), model="fake-model")
@@ -166,7 +166,7 @@ async def test_the_eval_writes_nowhere_near_the_repo() -> None:
 
 async def test_the_eval_grades_a_wrong_answer_as_wrong() -> None:
     """Right tool, wrong contents. The check that catches a plausible failure."""
-    from omega.evals import run_smoke
+    from omega_coding.evals import run_smoke
 
     checks = await run_smoke(
         FakeProvider(
