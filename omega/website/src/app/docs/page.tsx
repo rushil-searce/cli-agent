@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Reveal } from "@/components/site/interactive";
+import { GUTTER, PageHeader } from "@/components/site/primitives";
 import { site } from "@/lib/content";
 
 export const metadata: Metadata = {
@@ -94,17 +95,12 @@ const PATH = [
 
 export default function DocsPage() {
   return (
-    <section className="px-6 py-16 md:px-12 md:py-20">
-      <Reveal>
-        <p className="label m-0 mb-6 text-ink-muted">docs</p>
-        <h1 className="m-0 max-w-[20ch] text-4xl leading-[1.1] md:text-5xl">
-          Read them in this order.
-        </h1>
-        <p className="mt-6 max-w-[54ch] text-lg text-ink-muted">
-          The notes live in the repository as Markdown, so they cannot drift from the code. What a
-          file listing cannot tell you is the order — that is what this page is for.
-        </p>
-      </Reveal>
+    <section className={`py-16 md:py-20 ${GUTTER}`}>
+      <PageHeader
+        eyebrow="docs"
+        title="Read them in this order."
+        lede="The notes live in the repository as Markdown, so they cannot drift from the code. What a file listing cannot tell you is the order — that is what this page is for."
+      />
 
       <div className="mt-16 grid gap-x-12 gap-y-14">
         {PATH.map((group, gi) => (

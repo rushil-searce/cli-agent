@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Reveal } from "@/components/site/interactive";
+import { GUTTER, PageHeader } from "@/components/site/primitives";
 import { measured } from "@/lib/content";
 
 export const metadata: Metadata = {
@@ -41,17 +42,12 @@ const LESSONS = [
 
 export default function LessonsPage() {
   return (
-    <section className="px-6 py-16 md:px-12 md:py-20">
-      <Reveal>
-        <p className="label m-0 mb-6 text-ink-muted">lessons</p>
-        <h1 className="m-0 max-w-[18ch] text-4xl leading-[1.1] md:text-5xl">
-          What it actually taught.
-        </h1>
-        <p className="mt-6 max-w-[54ch] text-lg text-ink-muted">
-          Written after the fact, kept honest. Where a number appears it was measured — including
-          the ones that made the plan look wrong.
-        </p>
-      </Reveal>
+    <section className={`py-16 md:py-20 ${GUTTER}`}>
+      <PageHeader
+        eyebrow="lessons"
+        title="What it actually taught."
+        lede="Written after the fact, kept honest. Where a number appears it was measured — including the ones that made the plan look wrong."
+      />
 
       {/* The measurements the lessons are drawn from. */}
       <Reveal delay={60}>

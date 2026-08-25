@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Reveal } from "@/components/site/interactive";
+import { GUTTER, PageHeader } from "@/components/site/primitives";
 
 export const metadata: Metadata = {
   title: "Roadmap — omega",
@@ -125,13 +126,8 @@ export default function RoadmapPage() {
   };
 
   return (
-    <section className="px-6 py-16 md:px-12 md:py-20">
-      <Reveal>
-        <p className="label m-0 mb-6 text-ink-muted">roadmap</p>
-        <h1 className="m-0 max-w-[18ch] text-4xl leading-[1.1] md:text-5xl">
-          Two tiers closed. One to go.
-        </h1>
-
+    <section className={`py-16 md:py-20 ${GUTTER}`}>
+      <PageHeader eyebrow="roadmap" title="Two tiers closed. One to go.">
         <div className="mt-8 flex flex-wrap items-baseline gap-x-8 gap-y-3">
           {(["shipped", "next", "planned"] as const).map((k) => (
             <span key={k} className="flex items-baseline gap-2.5">
@@ -149,7 +145,7 @@ export default function RoadmapPage() {
           reality disagreed. The estimates were wrong three times running, and the notes still say
           so.
         </p>
-      </Reveal>
+      </PageHeader>
 
       <div className="mt-16 grid gap-16">
         {TIERS.map((tier, ti) => (

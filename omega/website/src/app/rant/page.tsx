@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Reveal } from "@/components/site/interactive";
+import { GUTTER, PageHeader } from "@/components/site/primitives";
 
 export const metadata: Metadata = {
   title: "Rant — omega",
@@ -60,16 +61,12 @@ const SECTIONS = [
 
 export default function RantPage() {
   return (
-    <section className="px-6 py-16 md:px-12 md:py-20">
-      <Reveal>
-        <p className="label m-0 mb-6 text-ink-muted">rant</p>
-        <h1 className="m-0 max-w-[16ch] text-4xl leading-[1.1] md:text-5xl">
-          Why build one at all?
-        </h1>
-        <p className="mt-6 max-w-[52ch] text-lg text-ink-muted">
-          There are better agents than this one. That was never the point.
-        </p>
-      </Reveal>
+    <section className={`py-16 md:py-20 ${GUTTER}`}>
+      <PageHeader
+        eyebrow="rant"
+        title="Why build one at all?"
+        lede="There are better agents than this one. That was never the point."
+      />
 
       {/* ── the spike, and what it costs ─────────────────────── */}
       <Reveal delay={60}>
