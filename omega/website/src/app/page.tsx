@@ -8,12 +8,29 @@ function Heading({ children }: { children: React.ReactNode }) {
 }
 
 /**
+ * A single watermark, anchored — not scattered.
+ *
+ * It bleeds off the right edge of one section and sits behind an opaque card,
+ * so it never lands on text. One deliberate placement reads as a mark; several
+ * random ones read as clutter.
+ */
+function Watermark() {
+  return (
+    <span
+      aria-hidden="true"
+      className="pointer-events-none absolute -right-10 top-1/2 hidden -translate-y-1/2 select-none font-serif text-[22rem] leading-none text-oxblood/[0.045] lg:block dark:text-oxblood/[0.07]"
+    >
+      &#937;
+    </span>
+  );
+}
+
+/**
  * The loop, drawn as a rail rather than a circle.
  *
- * The first attempt was an SVG circle with stations plotted at the wrong
- * radius, so the dots floated off the ring. A rail cannot fail that way: the
- * path is a border, the stations are list items sitting on it, and the geometry
- * follows the content instead of being hand-computed alongside it.
+ * An earlier attempt plotted stations at the wrong radius on an SVG circle, so
+ * the dots floated off the ring. A rail cannot fail that way: the path is a
+ * border and the stations are list items sitting on it.
  */
 const STEPS = [
   { n: 1, label: "ask the model", detail: "transcript, tools, system prompt" },
@@ -24,33 +41,48 @@ const STEPS = [
 
 function LoopFigure() {
   return (
-    <figure className="m-0 w-full max-w-sm">
-      <div className="relative rounded-l-2xl border-y border-l border-rule-strong py-6 pl-6 pr-1">
-        {/* the return arrow, sitting on the rail it points along */}
-        <span
-          aria-hidden="true"
-          className="absolute -left-[6px] top-1/2 -translate-y-1/2 bg-paper py-2 text-[10px] leading-none text-oxblood"
-        >
-          &#9650;
-        </span>
+    <figure className="relative m-0 w-full max-w-md border border-rule bg-paper-raised">
+      <figcaption className="flex items-baseline justify-between border-b border-rule px-6 py-3.5">
+        <span className="label text-ink">one turn</span>
+        <span className="label text-ink-muted">loop.py</span>
+      </figcaption>
 
-        <ol className="m-0 grid list-none gap-5 p-0">
-          {STEPS.map((s) => (
-            <li key={s.n} className="grid grid-cols-[auto_1fr] items-baseline gap-3.5">
-              <span className="tnum label text-oxblood">{s.n}</span>
-              <span>
-                <span className="block leading-snug">{s.label}</span>
-                <span className="block text-sm text-ink-muted">{s.detail}</span>
-              </span>
-            </li>
-          ))}
-        </ol>
+      <div className="px-6 py-7">
+        <div className="relative rounded-l-2xl border-y border-l border-rule-strong py-5 pl-6 pr-1">
+          <span
+            aria-hidden="true"
+            className="absolute -left-[6px] top-1/2 -translate-y-1/2 bg-paper-raised py-2 text-[10px] leading-none text-oxblood"
+          >
+            &#9650;
+          </span>
+
+          <ol className="m-0 grid list-none gap-5 p-0">
+            {STEPS.map((s) => (
+              <li key={s.n} className="grid grid-cols-[auto_1fr] items-baseline gap-3.5">
+                <span className="tnum label text-oxblood">{s.n}</span>
+                <span>
+                  <span className="block leading-snug">{s.label}</span>
+                  <span className="block text-sm text-ink-muted">{s.detail}</span>
+                </span>
+              </li>
+            ))}
+          </ol>
+        </div>
+
+        <div className="mt-6 flex items-baseline gap-3.5 pl-6">
+          <span className="label text-forest">stop</span>
+          <span className="text-sm text-ink-muted">no tool requested — the run ends</span>
+        </div>
       </div>
 
-      <figcaption className="mt-4 flex items-baseline gap-3.5 pl-6">
-        <span className="label text-forest">stop</span>
-        <span className="text-sm text-ink-muted">no tool requested — the run ends</span>
-      </figcaption>
+      {/* the stop condition, as it is actually written */}
+      <div className="overflow-x-auto border-t border-rule bg-term px-6 py-3.5">
+        <code className="whitespace-pre font-mono text-[12.5px] text-ink-muted">
+          <span className="text-oxblood">if not</span> assistant.tool_calls:{"\n"}
+          {"    "}
+          <span className="text-forest">return</span>
+        </code>
+      </div>
     </figure>
   );
 }
@@ -59,16 +91,15 @@ export default function Home() {
   return (
     <>
       {/* ── Hero ─────────────────────────────────────────────── */}
-      <section className={`relative border-b border-rule ${PAD} py-16 md:py-20`}>
-        {/* Graph-paper grid, behind everything and fading out before the fold. */}
+      <section className={`relative overflow-hidden border-b border-rule ${PAD} py-16 md:py-20`}>
+        {/* Graph paper across the whole hero, easing off only at the very end. */}
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute inset-0 [mask-image:linear-gradient(to_bottom,black,transparent_88%)]"
+          className="pointer-events-none absolute inset-0 [mask-image:linear-gradient(to_bottom,black_0%,black_72%,transparent_100%)]"
           style={{
             backgroundImage:
               "linear-gradient(to right, var(--rule) 1px, transparent 1px), linear-gradient(to bottom, var(--rule) 1px, transparent 1px)",
             backgroundSize: "64px 64px",
-            opacity: 0.55,
           }}
         />
 
@@ -80,7 +111,7 @@ export default function Home() {
                 <span className="label text-ink">omega</span>
               </div>
 
-              <h1 className="m-0 max-w-[16ch] text-4xl leading-[1.08] md:text-[3.25rem]">
+              <h1 className="m-0 max-w-[16ch] text-4xl font-normal leading-[1.08] md:text-[3.25rem]">
                 {site.tagline}
               </h1>
 
@@ -141,30 +172,44 @@ export default function Home() {
       </section>
 
       {/* ── the loop ─────────────────────────────────────────── */}
-      <section className={`border-b border-rule ${PAD} py-16`}>
-        <Reveal>
+      <section className={`relative overflow-hidden border-b border-rule ${PAD} py-16`}>
+        <Watermark />
+
+        <Reveal className="relative">
           <Heading>the loop</Heading>
           <div className="grid gap-x-12 gap-y-12 md:grid-cols-12">
-            <div className="md:col-span-7">
+            <div className="md:col-span-6">
               <h2 className="m-0 max-w-[18ch] text-3xl">
                 Ask, run what it asks for, report back, repeat.
               </h2>
-              <p className="mt-5 max-w-[52ch] text-lg text-ink-muted">
+              <p className="mt-5 max-w-[48ch] text-lg text-ink-muted">
                 That is the whole mechanism. Everything hard — budgets, approvals, retries,
                 persistence — lives <em>around</em> it, reached through callbacks. The loop asks; it
                 never decides.
               </p>
 
-              <ul className="m-0 mt-10 grid list-none gap-x-10 gap-y-7 p-0 sm:grid-cols-2">
-                {claims.map((c) => (
-                  <li key={c.title} className="border-t border-rule-strong pt-4">
-                    <h3 className="m-0 text-lg leading-snug">{c.title}</h3>
+              {/* stacked, not a two-column grid: three items never split evenly */}
+              <ol className="m-0 mt-10 grid list-none gap-0 p-0">
+                {claims.map((c, i) => (
+                  <li
+                    key={c.title}
+                    className="grid grid-cols-[auto_1fr] items-baseline gap-5 border-t border-rule py-5 last:border-b"
+                  >
+                    <span className="tnum label text-oxblood">
+                      {String(i + 1).padStart(2, "0")}
+                    </span>
+                    <span>
+                      <span className="block text-lg leading-snug">{c.title}</span>
+                      <span className="mt-1 block max-w-[52ch] text-sm text-ink-muted">
+                        {c.body}
+                      </span>
+                    </span>
                   </li>
                 ))}
-              </ul>
+              </ol>
             </div>
 
-            <div className="flex md:col-span-5 md:justify-end">
+            <div className="flex md:col-span-6 md:justify-end">
               <LoopFigure />
             </div>
           </div>
