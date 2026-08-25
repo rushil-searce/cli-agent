@@ -8,6 +8,8 @@ Written independently, not forked.
 
 **Currently at Tier 2 — "it is usable."** 4,654 lines of source, 289 tests, all offline.
 
+* **[`READING-ORDER.md`](READING-ORDER.md) — start here.** All 30 files in the order to read them,
+  one line each, plus the questions to hold while reading.
 * [`TIER-1.md`](TIER-1.md) — what the first tier does, and what it deliberately left out
 * [`TIER-2.md`](TIER-2.md) — what this tier adds, and where each remaining gap plugs in at Tier 3
 
@@ -60,62 +62,71 @@ whole thing still does nothing.
 
 ## Layout
 
+Three packages, following Tau. The rule that decides which one a file belongs to is a single
+question: **what does this thing know about?**
+
 ```
-src/omega/
-├── types.py          neutral messages and content blocks
-├── events.py         the 12 stream events    — Layer 1's vocabulary
-├── agent_events.py   the 10 agent events     — Layer 2's vocabulary
-├── provider.py       the interface. The core owns it; adapters conform.
-├── providers/
-│   ├── fake.py       scripted replay. Written first, on purpose.
-│   ├── retry.py      backoff — invisible above this layer
-│   ├── anthropic.py  one wire format
-│   └── openai.py     a different one. Also Groq, Together, Ollama, vLLM.
-├── hooks.py          the seams. Six of Pi's nine.
-├── loop.py           the agent loop. 190 lines, and it should not grow.
-├── tool_runner.py    one tool call to one tool result
-├── harness.py        owns the transcript, the queues, and cancellation
-├── cancellation.py   a token you can actually set
-├── history.py        two views of history — what is kept vs what is sent
-├── context.py        how full the window is (measures failure #1)
-├── cost.py           token totals; dollars only if you supply a price
-├── tools.py          Tool and ToolResult
-├── truncate.py       output budget: 2,000 lines / 50 KB, tail-biased
-├── paths.py          confinement. ONE place, not per-tool.
-├── file_lock.py      one lock per resolved path
-├── approval.py       the gate. Fills before_tool_call.
-├── redact.py         keeps credentials out of the transcript
-├── builtin_tools.py  read, write, edit, run — behind all of the above
-├── session/          append-only JSONL, migrate-on-read, parent_id on entries
-├── headless.py       prompt in, transcript out. No keyboard.
-├── evals.py          the smoke eval
-└── cli.py            print-based REPL. Not a TUI — that would still hide bugs.
+omega/src/
+├── omega_ai/          ── L1 · one vendor's wire format, and nothing else ──
+│   ├── provider.py       a 5-line re-export. The contract lives one layer down.
+│   ├── fake.py           scripted replay. Written before the real adapter.
+│   ├── retry.py          backoff — invisible above this layer
+│   ├── anthropic.py      one wire format
+│   └── openai.py         a different one. Also Groq, Together, Ollama, vLLM.
+│
+├── omega_agent/       ── L2 · messages, events, tools, turns ──
+│   ├── types.py          the neutral message model
+│   ├── events.py         the 12 stream events
+│   ├── agent_events.py   the 10 agent events
+│   ├── provider.py       THE CONTRACT. The consumer owns the interface.
+│   ├── tools.py          Tool and ToolResult
+│   ├── hooks.py          the six seams
+│   ├── loop.py           190 lines, and it should not grow
+│   ├── tool_runner.py    one tool call → one tool result
+│   ├── harness.py        owns the transcript, the queues, cancellation
+│   ├── cancellation.py   a token you can actually set
+│   └── session/          append-only JSONL, parent_id on every entry
+│
+└── omega_coding/      ── L3 + L4 · files, shells, policy, the screen ──
+    ├── paths.py          confinement. ONE place, not per-tool.
+    ├── file_lock.py      one lock per resolved path
+    ├── truncate.py       2,000 lines / 50 KB, tail-biased
+    ├── builtin_tools.py  read, write, edit, run
+    ├── approval.py       the gate — fills before_tool_call
+    ├── redact.py         keeps credentials out — fills after_tool_call
+    ├── history.py        what is kept vs what is sent
+    ├── context.py        how full the window is
+    ├── cost.py           tokens; dollars only if you supply a price
+    ├── headless.py       prompt in, transcript out. No keyboard.
+    ├── evals.py          the smoke eval
+    └── cli.py            the composition root. Reads last.
 ```
 
-`session/` is the only subdirectory Tier 2 earned. Folders follow subsystems, and it is the first
-thing here big enough to be one — which is also true of Tau, whose entire agent core has exactly
-one subfolder, and it is this one.
+`omega_agent/session/` is the only subfolder any of them earned — which is also true of Tau, whose
+entire agent core has exactly one, and it is this one. Folders follow subsystems.
+
+**Where a file goes, when it is ambiguous:** `hooks.py` is core because the loop *declares* the
+callbacks it will consult. Everything that *fills* one — `approval.py`, `redact.py`, `history.py` —
+is application, because each is a decision, and the loop asks rather than decides.
 
 ### The check that the layering held
 
-**Which files import a vendor SDK:**
+It used to be a `grep` in this README. It is now a test:
 
 ```bash
-grep -rln --include='*.py' -E '^(from|import) (anthropic|openai)' src/omega/
+uv run pytest tests/test_layers.py -q
 ```
 
-should print exactly two paths, both under `providers/`.
-
-This is deliberately narrower than "which files mention a vendor". `cli.py` imports
-`omega.providers.anthropic` — our module, not the SDK — because something has to choose a concrete
-provider, and that job belongs to the composition root. The leak would be a *core* module
-importing an SDK, and none does.
+which asserts that `omega_agent` imports nothing above it, that `omega_ai` does not know the app
+exists, that only a composition root names a concrete provider, and that exactly two files import a
+vendor SDK. It reads imports with `ast` rather than text, because all three packages *mention* each
+other in their docstrings while importing none of them.
 
 The stronger version of the same check is in the git history. Adding the second provider — a
 genuinely different wire format, with the opposite rule about how tool results are sent — required
-changes to `providers/`, its tests, and a few lines of provider selection in `cli.py`. Nothing
-else moved: not the loop, not the interface, not either event vocabulary. `git show ac0e370` has
-the full accounting.
+changes to the adapter package, its tests, and a few lines of provider selection in `cli.py`.
+Nothing else moved: not the loop, not the interface, not either event vocabulary. `git show ac0e370`
+has the full accounting.
 
 ## Why it's shaped this way
 

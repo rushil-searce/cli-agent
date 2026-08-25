@@ -188,14 +188,16 @@ coding-agent/
 
 ## 4. This repo
 
+Renamed to match the references: `docs/` became `dev-notes/` (Tau's name for exactly this — 25
+files of design reasoning) and `python/` became `omega/`, since the project has a name.
+
 ```
 cli-agent/
 ├── README.md              public face
-├── LICENSE                MIT
 ├── CLAUDE.md              instructions for agents working here
-├── .gitignore             excludes research/ and docs/dist/
+├── .gitignore             excludes research/, dev-notes/dist/, .omega/
 │
-├── docs/                  ← your study notes (Stages 1–3)
+├── dev-notes/             ← study notes (Stages 1–3). Tau has one of these.
 │   ├── 00-concepts/
 │   │   ├── anatomy.md         42 components, four groups, tiered
 │   │   └── security.md        because it runs shell commands
@@ -209,34 +211,63 @@ cli-agent/
 │   ├── 03-architecture/
 │   │   ├── 01-plain.md        zero jargon
 │   │   ├── 02-beginner.md     70 lines + 9 failures
-│   │   └── 03-production.md   the real thing
+│   │   ├── 03-production.md   the real thing
+│   │   └── 04-boundaries-and-layout.md
 │   ├── 04-glossary.md
 │   ├── 04-folder-trees.md     ← this file
-│   ├── 05-language-notes.md   (Stage 5) architecture vs language accident
-│   └── dist/                  generated PDF — gitignored
+│   ├── 06-product-roadmap.md  Tier 3 → Tau → Pi
+│   ├── dist/                  generated PDF — gitignored
+│   └── session-logs/          gitignored
 │
-├── scripts/
-│   └── build-pdf.sh       docs → one PDF
+├── omega/                 ← Stage 4. Three packages, Tau-shaped.
+│   ├── src/
+│   │   ├── omega_ai/          L1 · one module per WIRE FORMAT
+│   │   ├── omega_agent/       L2 · loop, harness, contract, session/
+│   │   └── omega_coding/      L3+L4 · tools, policy, gauges, cli
+│   ├── tests/                 one suite, incl. test_layers.py
+│   ├── website/               reserved — Tau-parity polish, roadmap §A1.9
+│   ├── READING-ORDER.md       what to read, in what order
+│   ├── TIER-1.md  TIER-2.md   what each tier has, and lacks
+│   └── pyproject.toml         one file, three packages — as Tau does
 │
-├── python/                ← Stage 4. Independent. Tier 1 → 2 → 3.
 ├── typescript/            ← Stage 5. Independent. Shares NO code.
-│
+├── scripts/               build-pdf.sh
 └── research/              ← gitignored. Reference input, not deliverable.
     ├── pi/                cloned, MIT
     ├── tau/               cloned, MIT
-    ├── transcripts/       19 .srt files
-    └── video-urls.txt
+    └── transcripts/       19 .srt files
 ```
+
+### The point of the rename
+
+Put the two side by side and the layouts line up package for package:
+
+| Tau | omega | Layer |
+|---|---|---|
+| `tau_ai/` | `omega_ai/` | 1 · provider |
+| `tau_agent/` | `omega_agent/` | 2 · portable core |
+| `tau_coding/` | `omega_coding/` | 3 + 4 · app and UI |
+| `tau_agent/session/` | `omega_agent/session/` | the one subfolder either core has |
+| `dev-notes/` | `dev-notes/` | design reasoning |
+
+That is not imitation for its own sake. It means every observation in
+`01-teardown/` about where Tau put something is directly checkable against where omega put the
+same thing — and where they differ, the difference is a decision rather than an accident.
+
+**One place omega goes further.** Tau's layering is a convention its authors keep. omega's is
+`tests/test_layers.py`: the core may not import the packages above it, only a composition root may
+name a concrete provider, and exactly two files may import a vendor SDK. A flat package cannot
+check any of that, which is the practical argument for splitting one directory into three.
 
 | Entry | Why |
 |---|---|
-| `docs/` | the durable asset — the code is practice, the understanding is the point |
-| `python/`, `typescript/` | same architecture twice; the diff isolates concept from language |
+| `dev-notes/` | the durable asset — the code is practice, the understanding is the point |
+| `omega/`, `typescript/` | same architecture twice; the diff isolates concept from language |
 | `research/` | gitignored: 31 MB of third-party code and other people's transcripts |
-| `docs/dist/` | gitignored: generated output |
+| `dev-notes/dist/` | gitignored: generated output |
 | `scripts/` | one place for build tooling |
 
-**Why `python/` and `typescript/` share nothing:** if they shared code, the comparison would be
+**Why `omega/` and `typescript/` share nothing:** if they shared code, the comparison would be
 meaningless. The only thing in common is the layer contract — and `05-language-notes.md` records
 where they diverge and why. Anything that *had* to change is language accident; anything identical
 is the real architecture.

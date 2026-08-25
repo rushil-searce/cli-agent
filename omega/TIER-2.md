@@ -163,8 +163,8 @@ The headless driver is also the terminal-bench interface. Built once, used twice
 - **`--provider openai` runs the same application code** — asserted by a contract suite running
   identical assertions against both adapters, and by one test driving the whole stack (headless
   driver, harness, real tools, gate, redaction) on either provider.
-- **Exactly two files import a vendor SDK**, both in `providers/`. Searching `src/omega/` for
-  top-level `anthropic` or `openai` imports returns those two paths and nothing else.
+- **Exactly two files import a vendor SDK**, both in `omega_ai/` — and this is now a test rather
+  than a `grep`: `tests/test_layers.py::test_exactly_two_files_import_a_vendor_sdk`.
 - The failure-#8 race is real, not decorative: take the per-path lock out and
   `test_two_concurrent_edits_to_one_file_both_land` fails with *"one edit was silently
   discarded"*.

@@ -51,6 +51,26 @@ Read every arrow as **"knows about"**:
 **Nothing points upward. Ever.** That's the entire rule, and every design decision downstream falls
 out of it.
 
+### What Tier 2 did to this diagram: nothing, and that is the finding
+
+The four boxes and four arrows are unchanged after a tier that added ~3,000 lines. A diagram that
+survives that is a diagram doing its job.
+
+What *did* change is that two of the arrows stopped being aspirational:
+
+| Arrow | At Tier 1 | At Tier 2 |
+|---|---|---|
+| L3 → L2 "installs hooks" | **there were no hooks.** The arrow described something that did not exist | six hooks exist; approvals, redaction, two-views-of-history and the queues all plug through them |
+| L4 → L2 "watches events" | **not true.** `cli.py` read the *provider's* twelve events directly, and noticed tool results by watching a Python list grow | it subscribes to the ten agent events, like a UI would |
+
+The lesson is worth more than the diagram. Drawing an arrow before the thing exists is fine — it is
+a commitment about where the thing will go when it arrives. Both arrived exactly where the picture
+said they would, and neither needed the picture redrawn.
+
+There is also now a way to check the diagram instead of trusting it. `omega/tests/test_layers.py`
+asserts that the core imports nothing above it, that only a composition root names a concrete
+provider, and that exactly two files import a vendor SDK. **"Nothing points upward" is a test.**
+
 ### Why "downward and inward" confused you
 
 The doc says dependencies point "downward and inward" but never says which way is down. Here it is:
@@ -203,6 +223,51 @@ Dump the 12 into `types.py` now and the 10 arrive later with no obvious home, ge
 lose the ability to tell at a glance which layer an event belongs to.
 
 Small decision now; saves a confusing refactor later.
+
+### One turn, both vocabularies
+
+The static diagram cannot show the relationship between the two, because it is a relationship in
+*time*. This is a single turn where the model asks for one tool:
+
+```mermaid
+sequenceDiagram
+    participant UI as L4 · renderer
+    participant Loop as L2 · loop
+    participant Prov as L1 · adapter
+    participant Tool as L3 · tool
+
+    Loop-->>UI: agent_start
+    Loop-->>UI: turn_start
+
+    Loop->>Prov: stream_response(messages, tools)
+    Prov-->>Loop: start
+    Loop-->>UI: message_start
+    Prov-->>Loop: toolcall_start / delta …
+    Loop-->>UI: message_update (carries the raw event)
+    Prov-->>Loop: done
+    Loop-->>UI: message_end
+
+    Loop-->>UI: tool_execution_start
+    Loop->>Tool: execute(arguments)
+    Tool-->>Loop: ToolResult
+    Loop-->>UI: tool_execution_end
+
+    Loop-->>UI: turn_end
+    Note over Loop: content carried tool calls,<br/>so the loop goes round again
+```
+
+Three things to read off it:
+
+1. **The twelve are not discarded when the ten arrive.** Each `message_update` carries the provider
+   event that caused it, so a renderer wanting token deltas still gets them and one wanting progress
+   can ignore them. Moving up a level costs nothing.
+2. **`tool_execution_start` has no equivalent in the twelve.** The provider knows nothing about tools
+   being *run* — it only knows they were requested. That event is the clearest single reason the
+   second vocabulary has to exist, and at Tier 1, where it did not, the CLI resorted to watching a
+   list grow to notice that a tool had finished.
+3. **Every arrow to the UI is one-way.** The renderer is told; it never asks, and it never calls
+   back. That is Boundary D, and it is why the same agent could later run on a server with the UI
+   somewhere else entirely.
 
 ---
 
