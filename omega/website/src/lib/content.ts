@@ -8,6 +8,10 @@
 
 export const site = {
   name: "omega",
+  eyebrow: "A terminal coding agent",
+  /** The argument, not the description. Both numbers are measured. */
+  headline: "The loop is 190 lines.",
+  headlineRest: "Everything else grew around it.",
   tagline: "A terminal coding agent, built from scratch in layers.",
   repo: "https://github.com/rushil-searce/cli-agent",
 } as const;
@@ -107,20 +111,18 @@ export const upcoming = [
   { name: "Subagents or plan mode", seam: "a subagent is the headless driver, called from a tool" },
 ] as const;
 
-export const quotes = [
+/** What the layering bought, stated as claims rather than adjectives. */
+export const claims = [
   {
-    text: "What I cannot create, I do not understand.",
-    who: "Richard Feynman",
-    src: "blackboard, 1988",
+    title: "Adding OpenAI changed nothing above Layer 1",
+    body: "Not a feature — the exam. Chat Completions is a genuinely different wire format, and the provider interface did not move. If it had, Tier 1 was wrong.",
   },
   {
-    text: "Program testing can be used to show the presence of bugs, but never to show their absence.",
-    who: "Edsger W. Dijkstra",
-    src: "Notes on Structured Programming, 1970",
+    title: "The loop holds at 190 lines",
+    body: "It hit 249 while the between-turns queues went in. Rather than let it grow, tool dispatch was extracted to its own file. The tripwire fired and did its job.",
   },
   {
-    text: "The purpose of computing is insight, not numbers.",
-    who: "Richard Hamming",
-    src: "Numerical Methods for Scientists and Engineers, 1962",
+    title: "289 tests, none touching the network",
+    body: "Every provider call is faked at the interface boundary, which is why providers/fake.py was written before the real adapter. The suite runs in 1.7 seconds with no key.",
   },
 ] as const;
