@@ -8,66 +8,76 @@ function Heading({ children }: { children: React.ReactNode }) {
 }
 
 /**
- * The loop, shown as the loop.
+ * The loop as a full-width band, not another split.
  *
- * Two earlier attempts drew it — a circle with mis-plotted stations, then a
- * railed card whose border and arrow read as vague. Both were illustrations of
- * something that is already legible in eight lines. The subject of this section
- * is that the mechanism is small; the most direct way to show that is the
- * mechanism.
- *
- * Condensed from omega_agent/loop.py — real lines, inner detail elided.
+ * Three earlier attempts all failed the same way: a circle, a railed card, then
+ * the source itself — each one a two-column split with a panel on the right,
+ * which is exactly the hero's shape. Four equal cells read left to right in one
+ * pass, and repeat nothing.
  */
-const LOOP_SOURCE: { text: string; tone?: "kw" | "dim" | "stop" }[][] = [
-  [{ text: "for", tone: "kw" }, { text: " turn " }, { text: "in", tone: "kw" }, { text: " range(max_turns):" }],
-  [{ text: "    assistant = " }, { text: "await", tone: "kw" }, { text: " stream(provider, messages, tools)" }],
-  [],
-  [{ text: "    calls = assistant.tool_calls" }],
-  [{ text: "    # content, not stop_reason", tone: "dim" }],
-  [],
-  [{ text: "    " }, { text: "if not", tone: "kw" }, { text: " calls:" }],
-  [{ text: "        " }, { text: "return", tone: "stop" }, { text: "  # the run is over", tone: "dim" }],
-  [],
-  [{ text: "    " }, { text: "for", tone: "kw" }, { text: " call " }, { text: "in", tone: "kw" }, { text: " calls:" }],
-  [{ text: "        messages.append(" }, { text: "await", tone: "kw" }, { text: " run_tool(call))" }],
-];
+const STEPS = [
+  { label: "Ask", detail: "the transcript, the tools, the standing instructions" },
+  { label: "It asks back", detail: "read this file, run this command" },
+  { label: "Do it", detail: "checked, budgeted, approved if it matters" },
+  { label: "Report", detail: "worked or failed — both are just text" },
+] as const;
 
-const TONE = {
-  kw: "text-oxblood",
-  dim: "text-ink-muted",
-  stop: "text-forest",
-} as const;
+/** src/ — the three packages, and what each is forbidden to know. */
+const PARTS = [
+  {
+    role: "the brain",
+    pkg: "omega_agent",
+    line: "The loop and the harness. Has never heard of a file or a terminal.",
+  },
+  {
+    role: "the environment",
+    pkg: "omega_coding",
+    line: "Tools, approvals, path confinement, sessions. Everything that touches your machine.",
+  },
+  {
+    role: "the voice",
+    pkg: "omega_ai",
+    line: "Talks to models. Two adapters, one interface, and no opinions above it.",
+  },
+] as const;
 
-function LoopSource() {
+function LoopBand() {
   return (
-    <figure className="m-0 w-full border border-rule bg-term">
-      <figcaption className="flex items-baseline justify-between border-b border-rule px-5 py-3">
-        <span className="label text-ink-muted">omega_agent/loop.py</span>
-        <span className="label text-ink-muted">190 lines</span>
-      </figcaption>
-      <pre className="m-0 overflow-x-auto px-5 py-5 font-mono text-[13px] leading-[1.85]">
-        <code>
-          {LOOP_SOURCE.map((line, i) => (
-            <span key={i} className="block min-h-[1.85em]">
-              {line.map((part, j) => (
-                <span key={j} className={part.tone ? TONE[part.tone] : undefined}>
-                  {part.text}
-                </span>
-              ))}
-            </span>
-          ))}
-        </code>
-      </pre>
-    </figure>
+    <div className="mt-10">
+      <ol className="m-0 grid list-none border border-rule bg-paper-raised p-0 md:grid-cols-4">
+        {STEPS.map((s, i) => (
+          <li
+            key={s.label}
+            className="border-b border-rule px-6 py-7 last:border-b-0 md:border-b-0 md:border-r md:last:border-r-0"
+          >
+            <span className="tnum label text-oxblood">{String(i + 1).padStart(2, "0")}</span>
+            <h3 className="m-0 mt-3 text-xl">{s.label}</h3>
+            <p className="m-0 mt-1.5 text-sm text-ink-muted">{s.detail}</p>
+          </li>
+        ))}
+      </ol>
+
+      <div className="flex flex-col gap-2 border-x border-b border-rule px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
+        <span className="flex items-baseline gap-2.5 text-sm text-ink-muted">
+          <span aria-hidden="true" className="text-oxblood">
+            &#8635;
+          </span>
+          Repeat for as long as it keeps asking.
+        </span>
+        <span className="flex items-baseline gap-2.5 text-sm">
+          <span className="label text-forest">stop</span>
+          <span className="text-ink-muted">it stops asking</span>
+        </span>
+      </div>
+    </div>
   );
 }
 
 export default function Home() {
   return (
     <>
-      {/* ── Hero ─────────────────────────────────────────────── */}
+      {/* ── Hero ─── split ──────────────────────────────────── */}
       <section className={`relative overflow-hidden border-b border-rule ${PAD} py-16 md:py-20`}>
-        {/* Graph paper across the whole hero, easing off only at the very end. */}
         <div
           aria-hidden="true"
           className="pointer-events-none absolute inset-0 [mask-image:linear-gradient(to_bottom,black_0%,black_72%,transparent_100%)]"
@@ -146,39 +156,73 @@ export default function Home() {
         </Reveal>
       </section>
 
-      {/* ── the loop ─────────────────────────────────────────── */}
+      {/* ── the loop ─── full-width band ─────────────────────── */}
       <section className={`border-b border-rule ${PAD} py-16`}>
         <Reveal>
           <Heading>the loop</Heading>
-          <div className="grid gap-x-12 gap-y-10 md:grid-cols-12">
-            <div className="md:col-span-5">
-              <h2 className="m-0 max-w-[16ch] text-3xl">
-                Ask, run what it asks for, report back, repeat.
-              </h2>
-              <p className="mt-5 max-w-[38ch] text-ink-muted">
-                The loop asks. It never decides — every policy is somebody else&rsquo;s callback.
-              </p>
+          <h2 className="m-0 max-w-[24ch] text-3xl md:text-[2.5rem] md:leading-[1.15]">
+            Four steps, on repeat. That is the entire agent.
+          </h2>
+          <LoopBand />
+        </Reveal>
+      </section>
 
-              <ul className="m-0 mt-9 grid list-none gap-0 p-0">
-                {claims.map((c) => (
-                  <li
-                    key={c.title}
-                    className="border-t border-rule py-3.5 text-[15px] leading-snug last:border-b"
-                  >
-                    {c.title}
-                  </li>
-                ))}
-              </ul>
-            </div>
+      {/* ── the boundary ─── three roles + a tree ────────────── */}
+      <section className={`border-b border-rule ${PAD} py-16`}>
+        <Reveal>
+          <Heading>the boundary</Heading>
+          <h2 className="m-0 max-w-[26ch] text-3xl md:text-[2.5rem] md:leading-[1.15]">
+            Separate the brain, the environment, and the face.
+          </h2>
+          <p className="mt-5 max-w-[56ch] text-lg text-ink-muted">
+            Each one is a package, and each is defined as much by what it is forbidden to know.
+          </p>
 
-            <div className="md:col-span-7">
-              <LoopSource />
-            </div>
+          <div className="mt-10 grid gap-x-10 gap-y-8 md:grid-cols-3">
+            {PARTS.map((p) => (
+              <div key={p.pkg} className="border-t-2 border-oxblood pt-5">
+                <h3 className="m-0 font-serif text-2xl">{p.role}</h3>
+                <p className="m-0 mt-1 font-mono text-xs text-ink-muted">{p.pkg}</p>
+                <p className="m-0 mt-4 text-ink-muted">{p.line}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-10 overflow-x-auto border border-rule bg-term px-5 py-5">
+            <pre className="m-0 font-mono text-[13px] leading-[1.9] text-ink">
+              <code>
+                {`src/
+├── omega_ai/       `}
+                <span className="text-ink-muted">the voice — providers, retry, streaming</span>
+                {`
+├── omega_agent/    `}
+                <span className="text-ink-muted">the brain — the loop, the harness, the hooks</span>
+                {`
+└── omega_coding/   `}
+                <span className="text-ink-muted">the environment and the face</span>
+              </code>
+            </pre>
           </div>
         </Reveal>
       </section>
 
-      {/* ── the stack ────────────────────────────────────────── */}
+      {/* ── what it bought ─── three cards ───────────────────── */}
+      <section className={`border-b border-rule ${PAD} py-16`}>
+        <Reveal>
+          <Heading>what the layering bought</Heading>
+          <ul className="m-0 grid list-none gap-x-10 gap-y-9 p-0 md:grid-cols-3">
+            {claims.map((c, i) => (
+              <li key={c.title} className="border-t border-rule-strong pt-5">
+                <span className="tnum label text-ink-muted">{String(i + 1).padStart(2, "0")}</span>
+                <h3 className="m-0 mt-3 text-xl leading-snug">{c.title}</h3>
+                <p className="m-0 mt-3 text-sm text-ink-muted">{c.body}</p>
+              </li>
+            ))}
+          </ul>
+        </Reveal>
+      </section>
+
+      {/* ── the stack ─── split, as before ───────────────────── */}
       <section className={`border-b border-rule ${PAD} py-16`}>
         <Reveal>
           <Heading>the stack</Heading>
@@ -235,7 +279,7 @@ export default function Home() {
         </Reveal>
       </section>
 
-      {/* ── two providers ────────────────────────────────────── */}
+      {/* ── two providers ─── two cards ──────────────────────── */}
       <section className={`border-b border-rule ${PAD} py-16`}>
         <Reveal>
           <Heading>two providers, one interface</Heading>
@@ -251,8 +295,8 @@ export default function Home() {
         </Reveal>
       </section>
 
-      {/* ── where it is ──────────────────────────────────────── */}
-      <section className={`${PAD} py-16 pb-20`}>
+      {/* ── where it is ─── stacked rows ─────────────────────── */}
+      <section className={`border-b border-rule ${PAD} py-16`}>
         <Reveal>
           <Heading>where it is</Heading>
           <div>
@@ -281,6 +325,50 @@ export default function Home() {
           >
             The full roadmap
           </a>
+        </Reveal>
+      </section>
+
+      {/* ── the origin ─── credits ───────────────────────────── */}
+      <section className={`${PAD} py-16 pb-20`}>
+        <Reveal>
+          <Heading>the origin</Heading>
+          <h2 className="m-0 max-w-[26ch] text-3xl md:text-[2.5rem] md:leading-[1.15]">
+            Inspired by Pi and Tau, written as a Python learning path.
+          </h2>
+          <p className="mt-6 max-w-[58ch] text-lg text-ink-muted">
+            Pi is the exemplar and Tau is the Python mirror. Omega shares no code with either — it
+            was read, then rebuilt from scratch, because the only way to understand a coding agent
+            is to write one.
+          </p>
+
+          <div className="mt-10 grid gap-x-10 gap-y-8 sm:grid-cols-2">
+            <a
+              href="https://pi.dev"
+              className="group cursor-pointer border-t-2 border-rule-strong pt-5 no-underline transition-colors duration-200 hover:border-oxblood"
+            >
+              <h3 className="m-0 font-serif text-2xl transition-colors duration-200 group-hover:text-oxblood">
+                Pi
+              </h3>
+              <p className="m-0 mt-2 text-ink-muted">
+                TypeScript. The exemplar — a minimal agent harness you adapt to your workflow.
+              </p>
+              <span className="label mt-3 inline-block text-ink-muted">pi.dev</span>
+            </a>
+
+            <a
+              href="https://twotimespi.dev"
+              className="group cursor-pointer border-t-2 border-rule-strong pt-5 no-underline transition-colors duration-200 hover:border-oxblood"
+            >
+              <h3 className="m-0 font-serif text-2xl transition-colors duration-200 group-hover:text-oxblood">
+                Tau
+              </h3>
+              <p className="m-0 mt-2 text-ink-muted">
+                Python. A coding agent small enough to read like a textbook, with the reasoning kept
+                in the open.
+              </p>
+              <span className="label mt-3 inline-block text-ink-muted">twotimespi.dev</span>
+            </a>
+          </div>
         </Reveal>
       </section>
     </>
