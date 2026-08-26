@@ -1,0 +1,156 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+/* ── Oxblood ──────────────────────────────────────────────────────
+   Burgundy and faded forest on bone. Light is the default: paper,
+   print and grain are a light-mode aesthetic. Dark is the evening
+   variant, not the primary.                                       */
+
+:root {
+  --paper:        #EFE9DE;
+  --paper-raised: #F5F1E9;
+  --ink:          #221C1A;
+  --ink-muted:    #645A54;
+  --oxblood:      #6E2231;
+  --forest:       #3F5040;
+  --rule:         #DBD1C3;
+  --rule-strong:  #C6B9A8;
+  --term-bg:      #E5DDD0;
+
+  --background: var(--paper);
+  --foreground: var(--ink);
+  --card: var(--paper-raised);
+  --card-foreground: var(--ink);
+  --popover: var(--paper-raised);
+  --popover-foreground: var(--ink);
+  --primary: var(--oxblood);
+  --primary-foreground: #F7F3EC;
+  --secondary: var(--paper-raised);
+  --secondary-foreground: var(--ink);
+  --muted: var(--paper-raised);
+  --muted-foreground: var(--ink-muted);
+  --accent: var(--forest);
+  --accent-foreground: #F7F3EC;
+  --destructive: #8A2B24;
+  --border: var(--rule);
+  --input: var(--rule-strong);
+  --ring: var(--oxblood);
+  --radius: 0.125rem;
+}
+
+.dark {
+  --paper:        #191412;
+  --paper-raised: #211A17;
+  --ink:          #E8DFD4;
+  --ink-muted:    #A79A8E;
+  --oxblood:      #D08494;
+  --forest:       #8FA891;
+  --rule:         #2C2422;
+  --rule-strong:  #3D322E;
+  --term-bg:      #120F0D;
+
+  --background: var(--paper);
+  --foreground: var(--ink);
+  --card: var(--paper-raised);
+  --card-foreground: var(--ink);
+  --popover: var(--paper-raised);
+  --popover-foreground: var(--ink);
+  --primary: var(--oxblood);
+  --primary-foreground: #191412;
+  --secondary: var(--paper-raised);
+  --secondary-foreground: var(--ink);
+  --muted: var(--paper-raised);
+  --muted-foreground: var(--ink-muted);
+  --accent: var(--forest);
+  --accent-foreground: #191412;
+  --destructive: #D08494;
+  --border: var(--rule);
+  --input: var(--rule-strong);
+  --ring: var(--oxblood);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-paper: var(--paper);
+  --color-paper-raised: var(--paper-raised);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-oxblood: var(--oxblood);
+  --color-forest: var(--forest);
+  --color-rule: var(--rule);
+  --color-rule-strong: var(--rule-strong);
+  --color-term: var(--term-bg);
+
+  --font-serif: var(--font-garamond);
+  --font-sans: var(--font-plex-sans);
+  --font-mono: var(--font-plex-mono);
+
+  --radius-sm: 0.0625rem;
+  --radius-md: 0.125rem;
+  --radius-lg: 0.125rem;
+}
+
+@layer base {
+  * { border-color: var(--border); }
+
+  html { -webkit-text-size-adjust: 100%; }
+
+  body {
+    background: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-garamond), Georgia, "Times New Roman", serif;
+    font-size: 1.0625rem;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  h1, h2, h3 { text-wrap: balance; letter-spacing: -0.012em; font-weight: 500; }
+
+  ::selection { background: var(--oxblood); color: var(--primary-foreground); }
+
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 3px;
+  }
+}
+
+@layer utilities {
+  /* small-caps label — the one recurring typographic device */
+  .label {
+    font-family: var(--font-plex-sans), system-ui, sans-serif;
+    font-size: 0.6875rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    font-weight: 500;
+  }
+  .tnum { font-variant-numeric: tabular-nums; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

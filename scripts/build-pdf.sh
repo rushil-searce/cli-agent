@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build docs/ into a single PDF handbook.
+# Build dev-notes/ into a single PDF handbook.
 #
 #   ./scripts/build-pdf.sh
 #
@@ -18,7 +18,7 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO_ROOT"
 
-DIST="docs/dist"
+DIST="dev-notes/dist"
 OUT="$DIST/cli-agent-handbook.pdf"
 
 # ---------------------------------------------------------------- preflight ---
@@ -71,24 +71,24 @@ fi
 # Explicit order, not a glob: the handbook should read start to finish.
 
 FILES=(
-  docs/03-architecture/01-plain.md
-  docs/00-concepts/anatomy.md
-  docs/00-concepts/security.md
-  docs/03-architecture/02-beginner.md
-  docs/03-architecture/03-production.md
-  docs/03-architecture/04-boundaries-and-layout.md
-  docs/01-teardown/01-provider-stream.md
-  docs/01-teardown/02-agent-loop-tools.md
-  docs/01-teardown/03-coding-tools.md
-  docs/01-teardown/03b-context-sessions-compaction.md
-  docs/01-teardown/04-terminal-ui.md
-  docs/01-teardown/05-beyond-the-core.md
-  docs/04-folder-trees.md
-  docs/04-glossary.md
+  dev-notes/03-architecture/01-plain.md
+  dev-notes/00-concepts/anatomy.md
+  dev-notes/00-concepts/security.md
+  dev-notes/03-architecture/02-beginner.md
+  dev-notes/03-architecture/03-production.md
+  dev-notes/03-architecture/04-boundaries-and-layout.md
+  dev-notes/01-teardown/01-provider-stream.md
+  dev-notes/01-teardown/02-agent-loop-tools.md
+  dev-notes/01-teardown/03-coding-tools.md
+  dev-notes/01-teardown/03b-context-sessions-compaction.md
+  dev-notes/01-teardown/04-terminal-ui.md
+  dev-notes/01-teardown/05-beyond-the-core.md
+  dev-notes/04-folder-trees.md
+  dev-notes/04-glossary.md
 )
 
 # Include Stage 5's language notes only once it exists.
-[ -f docs/05-language-notes.md ] && FILES+=(docs/05-language-notes.md)
+[ -f dev-notes/05-language-notes.md ] && FILES+=(dev-notes/05-language-notes.md)
 
 MISSING=0
 for f in "${FILES[@]}"; do
