@@ -13,7 +13,16 @@ export const site = {
   headline: "The loop is 190 lines.",
   headlineRest: "Everything else grew around it.",
   tagline: "A terminal coding agent, built from scratch in layers.",
+  /**
+   * Name-first, so a first-time visitor learns what omega *is* before
+   * anything else on the page. Condensed from `thesis` below
+   * (dev-notes/03-architecture/01-plain.md); the loop figure is the measured
+   * one from TIER-2.md. Nothing here is a claim those files do not make.
+   */
+  definition:
+    "is a Python coding agent small enough to read end to end. It asks a model for help, runs what it asks for, reports back, and repeats — until it says it is finished.",
   repo: "https://github.com/rushil-searce/cli-agent",
+  x: "https://x.com/rushil_jariwala",
 } as const;
 
 /** dev-notes/03-architecture/01-plain.md — the one-sentence version. */

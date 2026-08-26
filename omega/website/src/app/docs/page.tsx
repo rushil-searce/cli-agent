@@ -1,137 +1,342 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Reveal } from "@/components/site/interactive";
 import { GUTTER, PageHeader } from "@/components/site/primitives";
 import { site } from "@/lib/content";
 
 export const metadata: Metadata = {
   title: "Docs — omega",
-  description: "The reading order for omega's design notes, and what each one is for.",
+  description:
+    "Everything omega has at Tier 2, section by section — and an honest list of what it does not.",
 };
 
 const BLOB = `${site.repo}/blob/main`;
+const TREE = `${site.repo}/tree/main`;
+
+type Item = { name: string; href: string; where?: string; note: string };
 
 /**
- * The docs live in the repo as Markdown. Rather than duplicate them here and
- * let the copies drift, this page is the reading order — which is the part a
- * directory listing cannot tell you.
+ * Organised the way a documentation site is, rather than as a reading order —
+ * but every entry points at something that exists today. Nothing is listed as
+ * a placeholder; what Tier 2 lacks is in NOT_YET below instead, which is the
+ * more useful half of the page.
  */
-const PATH = [
+const SECTIONS: { title: string; lede: string; items: Item[] }[] = [
   {
-    step: "Start",
+    title: "Start here",
+    lede: "Three files, in this order. About an hour.",
     items: [
       {
-        name: "How a coding agent works",
-        file: "dev-notes/03-architecture/01-plain.md",
+        name: "What is a coding agent?",
+        href: `${BLOB}/dev-notes/03-architecture/01-plain.md`,
+        where: "dev-notes/03-architecture/01-plain.md",
         note: "No jargon. The whole shape in fifteen minutes.",
       },
       {
-        name: "The beginner architecture",
-        file: "dev-notes/03-architecture/02-beginner.md",
-        note: "Seventy lines that work, and the nine ways they break.",
+        name: "The seventy-line version",
+        href: `${BLOB}/dev-notes/03-architecture/02-beginner.md`,
+        where: "dev-notes/03-architecture/02-beginner.md",
+        note: "An agent that genuinely works, and the nine specific ways it breaks on a real repository.",
+      },
+      {
+        name: "Quickstart",
+        href: `${BLOB}/README.md`,
+        where: "README.md",
+        note: "Clone it and run it. `uv run omega --fake` needs no key, no network and no credits.",
       },
     ],
   },
   {
-    step: "Then",
+    title: "Guides",
+    lede: "The six things you can actually do with it today.",
     items: [
       {
-        name: "The production architecture",
-        file: "dev-notes/03-architecture/03-production.md",
-        note: "The same system with all nine fixed, and the vocabulary for each.",
+        name: "The interactive session",
+        href: `${BLOB}/omega/src/omega_coding/cli.py`,
+        where: "omega_coding/cli.py",
+        note: "The prompt loop, plus the two between-turns queues: steer it mid-task, or line up what comes next.",
       },
       {
-        name: "Boundaries and layout",
-        file: "dev-notes/03-architecture/04-boundaries-and-layout.md",
-        note: "The stack diagram and the four boundaries, in plainer terms.",
+        name: "Sessions",
+        href: `${TREE}/omega/src/omega_agent/session`,
+        where: "omega_agent/session/",
+        note: "Append-only JSONL, migrated on read. Resume the last one with --resume, or a specific one with --session.",
+      },
+      {
+        name: "Providers and models",
+        href: `${TREE}/omega/src/omega_ai`,
+        where: "omega_ai/",
+        note: "Anthropic Messages and OpenAI Chat Completions. --base-url points the latter at Groq, Together, Ollama or vLLM.",
+      },
+      {
+        name: "Approvals and safety",
+        href: `${BLOB}/omega/src/omega_coding/approval.py`,
+        where: "omega_coding/approval.py",
+        note: "It asks before changing anything, remembers the answer, and refuses a short list outright — which --yes does not skip.",
+      },
+      {
+        name: "Headless and scripting",
+        href: `${BLOB}/omega/src/omega_coding/headless.py`,
+        where: "omega_coding/headless.py",
+        note: "Prompt in, messages out. The same entry point the smoke eval drives.",
+      },
+      {
+        name: "Watching the context",
+        href: `${BLOB}/omega/src/omega_coding/context.py`,
+        where: "omega_coding/context.py",
+        note: "A gauge and a cost meter. They measure the context problem; Tier 3 is what fixes it.",
+      },
+    ],
+  },
+  {
+    title: "Reference",
+    lede: "Look these up as you hit them.",
+    items: [
+      {
+        name: "CLI flags",
+        href: `${BLOB}/omega/src/omega_coding/cli.py`,
+        where: "omega_coding/cli.py",
+        note: "--fake, --yes, --resume, --session, --no-save, --provider, --base-url, --model, --max-turns. That is all nine.",
+      },
+      {
+        name: "Built-in tools",
+        href: `${BLOB}/omega/src/omega_coding/builtin_tools.py`,
+        where: "omega_coding/builtin_tools.py",
+        note: "read_file, write_file, edit_file, run_shell. Four, and every one returns its errors as data.",
       },
       {
         name: "Folder trees",
-        file: "dev-notes/04-folder-trees.md",
-        note: "How the architecture maps onto directories.",
-      },
-    ],
-  },
-  {
-    step: "Build",
-    items: [
-      {
-        name: "Tier 1 — the loop works",
-        file: "omega/TIER-1.md",
-        note: "What it has, what it lacks, and where Tier 2 puts each gap.",
-      },
-      {
-        name: "Tier 2 — safe on a real repository",
-        file: "omega/TIER-2.md",
-        note: "Written as a contract before the code, kept honest afterwards.",
-      },
-    ],
-  },
-  {
-    step: "Reference",
-    items: [
-      {
-        name: "Anatomy",
-        file: "dev-notes/00-concepts/anatomy.md",
-        note: "Forty-two components, tiered. Read the summary table only.",
-      },
-      {
-        name: "Security",
-        file: "dev-notes/00-concepts/security.md",
-        note: "Because it runs shell commands.",
-      },
-      {
-        name: "Teardown",
-        file: "dev-notes/01-teardown",
-        note: "Six files, one per layer. Read one when you build that layer — not before.",
+        href: `${BLOB}/dev-notes/04-folder-trees.md`,
+        where: "dev-notes/04-folder-trees.md",
+        note: "How the five layers map onto three packages.",
       },
       {
         name: "Glossary",
-        file: "dev-notes/04-glossary.md",
-        note: "Look terms up as you hit them.",
+        href: `${BLOB}/dev-notes/04-glossary.md`,
+        where: "dev-notes/04-glossary.md",
+        note: "Every term the notes use, defined once.",
       },
     ],
   },
-] as const;
+  {
+    title: "How omega works",
+    lede: "The design, and the arguments behind it.",
+    items: [
+      {
+        name: "Architecture overview",
+        href: `${BLOB}/dev-notes/03-architecture/03-production.md`,
+        where: "dev-notes/03-architecture/03-production.md",
+        note: "The same system as the seventy-line version, with all nine failures fixed, and the vocabulary for each fix.",
+      },
+      {
+        name: "Boundaries and layout",
+        href: `${BLOB}/dev-notes/03-architecture/04-boundaries-and-layout.md`,
+        where: "dev-notes/03-architecture/04-boundaries-and-layout.md",
+        note: "The four boundaries, and the rule that arrows only point down.",
+      },
+      {
+        name: "The loop and its events",
+        href: `${BLOB}/omega/src/omega_agent/loop.py`,
+        where: "omega_agent/loop.py",
+        note: "190 lines, against a limit of 250. Twelve stream events below it, ten agent events above.",
+      },
+      {
+        name: "Teardown, one file per layer",
+        href: `${TREE}/dev-notes/01-teardown`,
+        where: "dev-notes/01-teardown/",
+        note: "Six files. Read one when you build that layer — not before.",
+      },
+      {
+        name: "Anatomy",
+        href: `${BLOB}/dev-notes/00-concepts/anatomy.md`,
+        where: "dev-notes/00-concepts/anatomy.md",
+        note: "Forty-two components, tiered. The summary table is the part to read.",
+      },
+      {
+        name: "Security",
+        href: `${BLOB}/dev-notes/00-concepts/security.md`,
+        where: "dev-notes/00-concepts/security.md",
+        note: "Because it runs shell commands on your machine.",
+      },
+    ],
+  },
+  {
+    title: "The tier contracts",
+    lede: "Each written before the code, then corrected where reality disagreed.",
+    items: [
+      {
+        name: "Tier 1 — the loop works",
+        href: `${BLOB}/omega/TIER-1.md`,
+        where: "omega/TIER-1.md",
+        note: "What it had, what it lacked, and where Tier 2 put each gap.",
+      },
+      {
+        name: "Tier 2 — safe on a real repository",
+        href: `${BLOB}/omega/TIER-2.md`,
+        where: "omega/TIER-2.md",
+        note: "Including the estimates that were wrong, which are still in the file.",
+      },
+      {
+        name: "Roadmap",
+        href: "/roadmap",
+        note: "Tier 3, and the two failures it has to close.",
+      },
+    ],
+  },
+];
+
+/**
+ * The honest half. Each of these is something a mature agent has and omega does
+ * not — named so the gap is countable rather than vague.
+ */
+const NOT_YET: { name: string; note: string; when: string }[] = [
+  { name: "Compaction", note: "Long tasks still fill the context and stop.", when: "Tier 3" },
+  {
+    name: "Prompt caching",
+    note: "Every turn re-sends the whole prefix, and pays for it.",
+    when: "Tier 3",
+  },
+  {
+    name: "A real TUI",
+    note: "Output is printed. The ten agent events are already the contract one would use.",
+    when: "Tier 3",
+  },
+  {
+    name: "Search tools",
+    note: "No grep, find or ls — the model reads whole files instead.",
+    when: "Tier 3",
+  },
+  {
+    name: "Subagents and plan mode",
+    note: "A subagent would be the headless driver, called from a tool.",
+    when: "Tier 3",
+  },
+  {
+    name: "Image reading",
+    note: "Content blocks are already a discriminated union, so there is somewhere to put it.",
+    when: "Tier 3",
+  },
+  { name: "Slash commands", note: "Nothing sits between you and the model.", when: "unplanned" },
+  { name: "Keyboard shortcuts", note: "Ctrl-C interrupts. That is the list.", when: "unplanned" },
+  {
+    name: "Config files",
+    note: "Flags only; nothing is read from disk at startup.",
+    when: "unplanned",
+  },
+  { name: "Skills and prompt templates", note: "No reusable prompt library.", when: "unplanned" },
+  {
+    name: "Project instructions",
+    note: "No per-repo standing instructions file.",
+    when: "unplanned",
+  },
+  {
+    name: "Extensions and themes",
+    note: "Neither exists; the renderer is a single file.",
+    when: "unplanned",
+  },
+];
+
+function ItemLink({ item }: { item: Item }) {
+  const internal = item.href.startsWith("/");
+  const heading = (
+    <h3 className="m-0 text-xl transition-colors duration-200 group-hover:text-oxblood">
+      {item.name}
+      {!internal && (
+        <span
+          aria-hidden="true"
+          className="ml-1.5 align-[0.15em] text-[0.6em] text-ink-muted transition-colors duration-200 group-hover:text-oxblood"
+        >
+          &#8599;
+        </span>
+      )}
+    </h3>
+  );
+
+  return (
+    <li>
+      {internal ? (
+        <Link href={item.href} className="group inline-block cursor-pointer no-underline">
+          {heading}
+        </Link>
+      ) : (
+        <a href={item.href} className="group inline-block cursor-pointer no-underline">
+          {heading}
+        </a>
+      )}
+      <p className="m-0 mt-1 max-w-[62ch] text-ink-muted">{item.note}</p>
+      {item.where && <p className="m-0 mt-1 font-mono text-xs text-ink-muted/70">{item.where}</p>}
+    </li>
+  );
+}
 
 export default function DocsPage() {
+  const total = SECTIONS.reduce((n, s) => n + s.items.length, 0);
+
   return (
     <section className={`py-16 md:py-20 ${GUTTER}`}>
       <PageHeader
         eyebrow="docs"
-        title="Read them in this order."
-        lede="The notes live in the repository as Markdown, so they cannot drift from the code. What a file listing cannot tell you is the order — that is what this page is for."
-      />
+        title="Everything Tier 2 has."
+        lede="The notes live in the repository as Markdown, so they cannot drift from the code. This page is the map — organised by what you would want to do, not by directory."
+      >
+        <div className="mt-8 flex flex-wrap items-baseline gap-x-8 gap-y-3">
+          <span className="flex items-baseline gap-2.5">
+            <span className="tnum font-serif text-2xl">{total}</span>
+            <span className="label text-ink-muted">entries</span>
+          </span>
+          <span className="flex items-baseline gap-2.5">
+            <span className="tnum font-serif text-2xl">{NOT_YET.length}</span>
+            <span className="label text-ink-muted">not here yet</span>
+          </span>
+        </div>
+      </PageHeader>
 
       <div className="mt-16 grid gap-x-12 gap-y-14">
-        {PATH.map((group, gi) => (
-          <Reveal key={group.step} delay={gi * 60}>
-            <div className="grid gap-x-12 gap-y-6 border-t border-rule-strong pt-7 md:grid-cols-12">
-              <h2 className="label m-0 text-oxblood md:col-span-3">{group.step}</h2>
+        {SECTIONS.map((section, si) => (
+          <Reveal key={section.title} delay={si * 50}>
+            <div className="grid gap-x-12 gap-y-6 border-t-2 border-rule-strong pt-7 md:grid-cols-12">
+              <div className="md:col-span-3">
+                <h2 className="label m-0 text-oxblood">{section.title}</h2>
+                <p className="m-0 mt-2.5 max-w-[28ch] text-sm text-ink-muted">{section.lede}</p>
+              </div>
               <ul className="m-0 grid list-none gap-6 p-0 md:col-span-9">
-                {group.items.map((item) => (
-                  <li key={item.file}>
-                    <a
-                      href={`${BLOB}/${item.file}`}
-                      className="group inline-block cursor-pointer no-underline"
-                    >
-                      <h3 className="m-0 text-xl transition-colors duration-200 group-hover:text-oxblood">
-                        {item.name}
-                        <span
-                          aria-hidden="true"
-                          className="ml-1.5 align-[0.15em] text-[0.6em] text-ink-muted transition-colors duration-200 group-hover:text-oxblood"
-                        >
-                          &#8599;
-                        </span>
-                      </h3>
-                    </a>
-                    <p className="m-0 mt-1 max-w-[58ch] text-ink-muted">{item.note}</p>
-                    <p className="m-0 mt-1 font-mono text-xs text-ink-muted/70">{item.file}</p>
-                  </li>
+                {section.items.map((item) => (
+                  <ItemLink key={item.name} item={item} />
                 ))}
               </ul>
             </div>
           </Reveal>
         ))}
+
+        {/* The gap, named. A docs page that lists only what exists reads as
+            complete; this is the half that keeps it honest. */}
+        <Reveal>
+          <div className="grid gap-x-12 gap-y-6 border-t-2 border-rule-strong pt-7 md:grid-cols-12">
+            <div className="md:col-span-3">
+              <h2 className="label m-0 text-ink-muted">Not here yet</h2>
+              <p className="m-0 mt-2.5 max-w-[28ch] text-sm text-ink-muted">
+                Named so the gap is countable. Half are Tier 3; the rest are not planned at all.
+              </p>
+            </div>
+            <ul className="m-0 grid list-none gap-3 p-0 sm:grid-cols-2 md:col-span-9">
+              {NOT_YET.map((n) => (
+                <li key={n.name} className="border-t border-rule pt-3">
+                  <span className="flex flex-wrap items-baseline gap-x-2.5">
+                    <span className="leading-snug text-ink-muted line-through decoration-rule-strong">
+                      {n.name}
+                    </span>
+                    <span
+                      className={`label ${n.when === "unplanned" ? "text-ink-muted/70" : "text-oxblood"}`}
+                    >
+                      {n.when}
+                    </span>
+                  </span>
+                  <span className="mt-0.5 block text-sm text-ink-muted">{n.note}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </Reveal>
       </div>
     </section>
   );

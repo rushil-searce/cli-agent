@@ -3,15 +3,24 @@ import { GUTTER } from "@/components/site/primitives";
 import { Terminal, TerminalCommand } from "@/components/site/terminal";
 import { commands, site } from "@/lib/content";
 
-/** Graph paper across the hero, easing off only at the very end. */
+/**
+ * Graph paper across the hero, easing off only at the very end.
+ *
+ * The horizontals are deliberately much fainter than the verticals. A full
+ * strength horizontal rule landing on a line of prose reads as a strikethrough
+ * — the verticals never do, because they cross letterforms rather than run
+ * along them. Same grid, no struck-out text.
+ */
 function GridPaper() {
   return (
     <div
       aria-hidden="true"
-      className="pointer-events-none absolute inset-0 [mask-image:linear-gradient(to_bottom,black_0%,black_72%,transparent_100%)]"
+      className="pointer-events-none absolute inset-0 mask-[linear-gradient(to_bottom,black_0%,black_72%,transparent_100%)]"
       style={{
-        backgroundImage:
-          "linear-gradient(to right, var(--rule) 1px, transparent 1px), linear-gradient(to bottom, var(--rule) 1px, transparent 1px)",
+        backgroundImage: [
+          "linear-gradient(to right, var(--rule) 1px, transparent 1px)",
+          "linear-gradient(to bottom, color-mix(in srgb, var(--rule) 32%, transparent) 1px, transparent 1px)",
+        ].join(", "),
         backgroundSize: "64px 64px",
       }}
     />
@@ -26,20 +35,25 @@ export function Hero() {
 
       <Reveal className="relative">
         <div className="grid items-center gap-x-12 gap-y-12 md:grid-cols-12">
-          <div className="md:col-span-6">
-            {/* Name only — the header carries the mark. */}
-            <p className="label m-0 mb-7 text-ink">omega</p>
-
+          <div className="min-w-0 md:col-span-6 md:pl-5">
             <h1 className="m-0 max-w-[16ch] text-4xl leading-[1.08] md:text-[3.25rem]">
               {site.tagline}
             </h1>
 
-            <p className="mt-7 max-w-[42ch] text-lg text-ink-muted">
+            {/* The name carries the definition, so the hero needs no wordmark
+                of its own — the header already holds the mark. */}
+            <p className="mt-7 max-w-[48ch] text-lg text-ink-muted">
+              <strong className="font-medium text-ink">omega</strong> {site.definition}
+            </p>
+
+            <p className="mt-4 max-w-[42ch] text-lg text-ink-muted">
               <span className="text-ink">{site.headline}</span> {site.headlineRest}
             </p>
 
             <div className="mt-9 flex flex-wrap items-center gap-3">
-              <code className="border border-rule bg-paper-raised px-3.5 py-2 font-mono text-[13px]">
+              {/* The command is wider than a phone; it scrolls inside its own
+                  box rather than pushing the page sideways. */}
+              <code className="max-w-full overflow-x-auto whitespace-nowrap border border-rule bg-paper-raised px-3.5 py-2 font-mono text-[12px] sm:text-[13px]">
                 git clone {site.repo.replace("https://", "")}
               </code>
               <CopyCommand value={`git clone ${site.repo}.git`} />
@@ -56,7 +70,7 @@ export function Hero() {
             </p>
           </div>
 
-          <div className="md:col-span-6">
+          <div className="min-w-0 md:col-span-6 min-[1152px]:-ml-[23px] min-[1152px]:mr-[13px]">
             <Terminal>
               {commands.map((c) => (
                 <TerminalCommand key={c.cmd} cmd={c.cmd} note={c.note} />
