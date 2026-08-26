@@ -95,7 +95,7 @@ export function CopyCommand({ value }: { value: string }) {
       type="button"
       onClick={copy}
       variant="ghost"
-      className="label h-auto cursor-pointer rounded-none border border-rule px-3 py-1.5 text-ink-muted hover:border-oxblood hover:bg-transparent hover:text-oxblood"
+      className="label h-auto cursor-pointer rounded-none border border-rule bg-paper-raised px-3 py-1.5 text-ink-muted hover:border-oxblood hover:bg-paper-raised hover:text-oxblood"
     >
       <span aria-live="polite">{copied ? "Copied" : "Copy"}</span>
     </Button>

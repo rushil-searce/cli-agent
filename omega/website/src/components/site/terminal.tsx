@@ -12,7 +12,7 @@ export function Terminal({
   children: React.ReactNode;
 }) {
   return (
-    <div className="border border-rule bg-term font-mono text-[13px] leading-relaxed">
+    <div className="rounded-[5px] border border-rule bg-term font-mono text-[13px] leading-relaxed">
       <div className="flex items-center gap-1.5 border-b border-rule px-4 py-2.5">
         <span className="h-2 w-2 rounded-full bg-oxblood/40" />
         <span className="h-2 w-2 rounded-full bg-forest/40" />

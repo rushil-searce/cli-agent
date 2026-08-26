@@ -1,6 +1,5 @@
 import Link from "next/link";
-import { site } from "@/lib/content";
-import { NAV } from "@/lib/nav";
+import { EXTERNAL, NAV } from "@/lib/nav";
 import { GUTTER } from "@/components/site/primitives";
 
 /** The wordmark at full voice, the way Tau closes its page. */
@@ -30,12 +29,15 @@ export function SiteFooter() {
               {item.label}
             </Link>
           ))}
-          <a
-            href={site.repo}
-            className="label cursor-pointer text-ink-muted transition-colors duration-200 hover:text-oxblood"
-          >
-            GitHub
-          </a>
+          {EXTERNAL.map((item) => (
+            <a
+              key={item.label}
+              href={item.href}
+              className="label cursor-pointer text-ink-muted transition-colors duration-200 hover:text-oxblood"
+            >
+              {item.label}
+            </a>
+          ))}
           <p className="m-0 mt-4 text-sm text-ink-muted/80">MIT &middot; pull requests welcome</p>
         </div>
       </div>

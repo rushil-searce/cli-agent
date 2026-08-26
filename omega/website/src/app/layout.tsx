@@ -47,19 +47,6 @@ function Grain() {
   );
 }
 
-/** Two full-height hairlines framing the measure. */
-function Boundary() {
-  return (
-    <div
-      aria-hidden="true"
-      className="pointer-events-none fixed inset-y-0 left-1/2 z-0 hidden w-full max-w-6xl -translate-x-1/2 md:block"
-    >
-      <div className="absolute inset-y-0 left-0 w-px bg-rule" />
-      <div className="absolute inset-y-0 right-0 w-px bg-rule" />
-    </div>
-  );
-}
-
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
@@ -67,9 +54,8 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         className={`${garamond.variable} ${plexSans.variable} ${plexMono.variable} antialiased`}
       >
         <Grain />
-        <Boundary />
 
-        <div className="relative z-10 mx-auto flex min-h-dvh w-full max-w-6xl flex-col">
+        <div className="relative z-10 mx-auto flex min-h-dvh w-full max-w-6xl flex-col border-rule md:border-x">
           <SiteHeader />
           <main className="flex-1">{children}</main>
           <SiteFooter />
